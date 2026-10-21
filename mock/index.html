@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TaskBoard（モック）</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- F-54 公開デモの案内 -->
+  <p class="demo-banner" role="note">公開デモです。誰でも編集でき、毎日午前4時に見本データへ戻ります。個人情報や本物の予定は入力しないでください</p>
+
+  <!-- S-01 ボード画面：ヘッダー -->
+  <header class="app-header">
+    <h1 class="app-title">TaskBoard</h1>
+    <nav class="board-tabs" id="board-tabs" aria-label="ボードの切り替え"></nav>
+    <div class="header-actions" id="header-actions">
+      <details class="popover-menu" id="filter-menu">
+        <summary class="header-btn" id="filter-summary">ラベルで絞り込み ▼</summary>
+        <div class="popover" id="filter-options"></div>
+      </details>
+      <button type="button" class="header-btn" id="open-label-manager">ラベル管理</button>
+    </div>
+  </header>
+
+  <div class="filter-bar" id="filter-bar" hidden></div>
+  <div class="toast-area" id="toast-area" aria-live="assertive"></div>
+
+  <!-- S-01 ボード画面：カラムとカード（JavaScript で描画） -->
+  <main class="board" id="board" aria-label="ボード" tabindex="-1"></main>
+
+  <!-- S-02 タスク作成モーダル／S-03 タスク編集モーダル -->
+  <dialog id="task-dialog" aria-labelledby="task-dialog-title">
+    <form id="task-form" novalidate>
+      <div class="dialog-header">
+        <h2 id="task-dialog-title">タスクを作成</h2>
+        <button type="button" class="icon-btn" data-action="close" aria-label="閉じる">×</button>
+      </div>
+      <div class="dialog-body">
+        <div class="field">
+          <label for="task-title">タイトル（必須）</label>
+          <input id="task-title" name="title" maxlength="100" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="task-description">説明</label>
+          <textarea id="task-description" name="description" maxlength="1000" rows="4"></textarea>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="task-status">カラム</label>
+            <select id="task-status" name="status"></select>
+          </div>
+          <div class="field">
+            <label for="task-priority">優先度</label>
+            <select id="task-priority" name="priority"></select>
+          </div>
+          <div class="field">
+            <label for="task-due">期限</label>
+            <div class="due-input">
+              <input type="date" id="task-due" name="dueDate">
+              <button type="button" class="link-btn" id="task-due-clear">消す</button>
+            </div>
+          </div>
+        </div>
+        <fieldset class="field">
+          <legend>ラベル（複数選べます）</legend>
+          <div class="label-options" id="task-label-options"></div>
+        </fieldset>
+        <p class="form-error" id="task-form-error" role="alert" hidden></p>
+      </div>
+      <div class="dialog-footer">
+        <button type="button" class="btn btn-danger-outline" id="task-delete">削除</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn" data-action="cancel">キャンセル</button>
+        <button type="submit" class="btn btn-primary" id="task-submit">作成</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- S-04 タスク削除確認ダイアログ -->
+  <dialog id="delete-dialog" class="dialog--small" aria-labelledby="delete-dialog-title">
+    <div class="dialog-header">
+      <h2 id="delete-dialog-title">このタスクを削除しますか？</h2>
+    </div>
+    <div class="dialog-body">
+      <p class="dialog-strong" id="delete-task-name"></p>
+      <p>削除すると元に戻せません。</p>
+    </div>
+    <div class="dialog-footer">
+      <button type="button" class="btn" id="delete-cancel">キャンセル</button>
+      <button type="button" class="btn btn-danger" id="delete-confirm">削除する</button>
+    </div>
+  </dialog>
+
+  <!-- S-05 ラベル管理モーダル -->
+  <dialog id="label-dialog" aria-labelledby="label-dialog-title">
+    <div class="dialog-header">
+      <h2 id="label-dialog-title">ラベル管理</h2>
+      <button type="button" class="icon-btn" data-action="close" aria-label="閉じる">×</button>
+    </div>
+    <div class="dialog-body">
+      <p class="hint"><span id="label-board-name"></span>ボードのラベルです。色・名前は変えるとすぐに保存されます。<span id="label-count"></span></p>
+      <ul class="label-list" id="label-list"></ul>
+      <div class="label-row new-label">
+        <span class="swatch chip--green" id="new-label-swatch" aria-hidden="true"></span>
+        <select id="new-label-color" aria-label="新しいラベルの色"></select>
+        <input id="new-label-name" maxlength="20" placeholder="新しいラベルの名前（なしでもよい）" aria-label="新しいラベルの名前" autocomplete="off">
+        <button type="button" class="btn btn-primary" id="add-label">＋ 追加</button>
+      </div>
+      <p class="form-error" id="label-error" role="alert" hidden></p>
+    </div>
+    <div class="dialog-footer">
+      <button type="button" class="btn" data-action="close">閉じる</button>
+    </div>
+  </dialog>
+
+  <!-- S-06 ラベル削除確認ダイアログ -->
+  <dialog id="label-delete-dialog" class="dialog--small" aria-labelledby="label-delete-title">
+    <div class="dialog-header">
+      <h2 id="label-delete-title">ラベルを削除しますか？</h2>
+    </div>
+    <div class="dialog-body">
+      <p id="label-delete-message"></p>
+    </div>
+    <div class="dialog-footer">
+      <button type="button" class="btn" id="label-delete-cancel">キャンセル</button>
+      <button type="button" class="btn btn-danger" id="label-delete-confirm">削除する</button>
+    </div>
+  </dialog>
+
+  <!-- モック専用：本物のアプリにはない -->
+  <aside class="mock-panel" aria-label="モック用の操作パネル">
+    <details>
+      <summary>🛠 モック用パネル</summary>
+      <div class="mock-panel-body">
+        <fieldset>
+          <legend>画面の状態</legend>
+          <label><input type="radio" name="mock-screen" value="normal" autocomplete="off" checked> 通常</label>
+          <label><input type="radio" name="mock-screen" value="loading" autocomplete="off"> 読み込み中</label>
+          <label><input type="radio" name="mock-screen" value="error" autocomplete="off"> サーバーに接続できない</label>
+        </fieldset>
+        <label><input type="checkbox" id="mock-fail-save" autocomplete="off"> 保存を失敗させる</label>
+        <button type="button" class="btn" id="mock-reset">見本データに戻す</button>
+        <a class="mock-link" href="guide.html" target="_blank" rel="noopener">検証ガイドを開く ↗</a>
+        <p class="mock-note">このパネルは確認用で、本物のアプリにはありません。</p>
+      </div>
+    </details>
+  </aside>
+
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/board.js"></script>
+  <script src="js/task-modal.js"></script>
+  <script src="js/label-modal.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

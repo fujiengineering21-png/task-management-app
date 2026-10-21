@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TaskBoard モック 検証ガイド</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="css/guide.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <p class="topbar-title">TaskBoard モック<br class="sp-only"> 検証ガイド</p>
+      <div class="progress" aria-live="polite">
+        <div class="progress-bar" aria-hidden="true"><span id="progress-ok"></span><span id="progress-ng"></span></div>
+        <p id="progress-text">確認済み 0 / 0</p>
+      </div>
+      <div class="topbar-actions">
+        <a class="btn btn-primary" href="index.html" target="_blank" rel="noopener">モックを開く ↗</a>
+        <button type="button" class="btn" data-copy-report>結果をコピー</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="intro">
+      <h1>モックを自分で確かめるためのガイド</h1>
+      <p>このページは、TaskBoard のモック（試作品）が<strong>画面設計書・機能一覧のとおりに動くか</strong>を、あなた自身が確かめるためのものです。先に「仕組み」をざっと読むと、どこを見ればよいかが分かりやすくなります。</p>
+      <ol class="steps">
+        <li><strong>モックを開く</strong>：右上の「モックを開く」で別のタブに開きます。ウインドウを左右に並べると楽です。</li>
+        <li><strong>上から順に試す</strong>：「3. 検証チェックリスト」の手順どおりに操作し、結果を「OK」「要修正」で記録します。まずは <span class="badge badge--core">★ まずはここ</span> の13項目だけでも大丈夫です。</li>
+        <li><strong>結果を送る</strong>：終わったら「結果をコピー」を押し、Claude のチャットに貼り付けます。「要修正」とメモの内容をもとに直します。</li>
+      </ol>
+      <p class="note">記録はこのブラウザにだけ保存されます。モックは再読み込みすると見本データに戻るので、何度でも最初からやり直せます。</p>
+      <p class="note note--warn" id="storage-note" hidden>このブラウザでは記録を保存できませんでした。ページを閉じると記録は消えます。</p>
+      <nav class="toc" aria-label="もくじ">
+        <a href="#overview">1. 全体像</a>
+        <a href="#mechanism">2. 仕組み</a>
+        <a href="#checklist">3. チェックリスト</a>
+        <a href="#quiz">4. 理解度チェック</a>
+        <a href="#report">5. 結果の送り方</a>
+      </nav>
+    </section>
+
+    <!-- ========== 1. 全体像 ========== -->
+    <section id="overview" class="section">
+      <h2>1. 5分でわかる TaskBoard</h2>
+      <p>TaskBoard は「やること（タスク）」をカードにして、<strong>未着手 → 作業中 → 完了</strong>の3列に並べて管理するアプリです。「仕事」と「プライベート」の2つのボードを切り替えて使います。</p>
+
+      <h3>ボード画面の各部の名前</h3>
+      <figure class="annotated">
+        <img src="images/board-overview.png" alt="TaskBoard のボード画面。上に案内の帯とタブ、下に未着手・作業中・完了の3つのカラムとカードが並んでいる" width="1280" height="800">
+        <span class="marker" style="left:21.5%;top:2%">1</span>
+        <span class="marker" style="left:25.8%;top:7.1%">2</span>
+        <span class="marker" style="left:77.7%;top:7.1%">3</span>
+        <span class="marker" style="left:95%;top:10.6%">4</span>
+        <span class="marker" style="left:10.4%;top:15.75%">5</span>
+        <span class="marker" style="left:18.4%;top:15.75%">6</span>
+        <span class="marker" style="left:11.6%;top:21.25%">7</span>
+        <span class="marker" style="left:1.6%;top:24.75%">8</span>
+        <span class="marker" style="left:13.6%;top:24.75%">9</span>
+        <span class="marker" style="left:14.2%;top:28%">10</span>
+        <span class="marker" style="left:11.9%;top:54.9%">11</span>
+        <span class="marker" style="left:60.6%;top:24.75%">12</span>
+        <span class="marker" style="left:86.5%;top:96%">13</span>
+      </figure>
+      <ol class="legend">
+        <li><b>公開デモの案内</b>：いつも一番上に出る注意書き（F-54）</li>
+        <li><b>ボードのタブ</b>：「仕事」「プライベート」を切り替える。ダブルクリックで名前を変える（F-02, F-03）</li>
+        <li><b>ラベルで絞り込み</b>：選んだラベルの付いたカードだけ表示（F-44）</li>
+        <li><b>ラベル管理</b>：ラベルの追加・色や名前の変更・削除（S-05）</li>
+        <li><b>カラム見出し</b>：カラム名と、中にあるカードの数（F-05）</li>
+        <li><b>「⋯」メニュー</b>：優先度順・期限順に並べ直す（F-23）</li>
+        <li><b>ラベル</b>：カードに付いた色付きの目印（F-40）</li>
+        <li><b>完了マーク（○）</b>：押すと ✓ が付く。カードは移動しない（F-30, F-32）</li>
+        <li><b>タイトル</b>：カードを押すと編集モーダルが開く（F-11）</li>
+        <li><b>優先度・期限・📝</b>：📝 は説明が書いてある印（R-08）</li>
+        <li><b>＋ タスクを追加</b>：押したカラムに入るタスクを作る（F-10）</li>
+        <li><b>完了マーク済みのカード</b>：✓・取り消し線・少しグレー（F-31）</li>
+        <li><b>モック用パネル</b>：確認用の道具。本物のアプリにはない</li>
+      </ol>
+
+      <h3>6つの画面</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>画面</th><th>何をする画面か</th><th>開き方</th></tr></thead>
+          <tbody>
+            <tr><td>S-01 ボード画面</td><td>カードを見る・動かす・✓を付ける・並べ直す・絞り込む</td><td>モックを開くと最初に出る</td></tr>
+            <tr><td>S-02 タスク作成モーダル</td><td>新しいタスクを作る</td><td>カラム下の「＋ タスクを追加」</td></tr>
+            <tr><td>S-03 タスク編集モーダル</td><td>タスクの中身を変える</td><td>カードを押す</td></tr>
+            <tr><td>S-04 タスク削除確認</td><td>本当に消すか確かめる</td><td>編集モーダルの「削除」</td></tr>
+            <tr><td>S-05 ラベル管理モーダル</td><td>ラベルを作る・変える・消す</td><td>右上の「ラベル管理」</td></tr>
+            <tr><td>S-06 ラベル削除確認</td><td>本当に消すか確かめる</td><td>ラベル管理の 🗑</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">「モーダル」は、画面の上に重ねて開く小窓のことです。開いている間は後ろの画面を操作できません。</p>
+    </section>
+
+    <!-- ========== 2. 仕組み ========== -->
+    <section id="mechanism" class="section">
+      <h2>2. 仕組み（からくり）を知る</h2>
+      <p>動きを確かめるときに「なぜそうなるのか」が分かるよう、モックの中で起きていることを8つにまとめました。各項目の最後に、関係するチェック項目の番号を書いています。</p>
+
+      <article class="mech">
+        <h3><span class="mech-no">1</span>データは1か所、画面は毎回描き直す</h3>
+        <div class="flow" aria-label="操作からの流れ">
+          <span class="flow-box">あなたの操作</span><span class="flow-arrow">→</span>
+          <span class="flow-box">新しいデータを作る<small>store.js</small></span><span class="flow-arrow">→</span>
+          <span class="flow-box">画面を描き直す<small>board.js など</small></span>
+        </div>
+        <p>タスク・ラベル・ボードの情報は <code>store.js</code> の1か所にまとめて持っています。何か操作するたびに「データを新しく作り直す → 画面を全部描き直す」をくり返します。画面を直接いじらないので、<strong>見えている内容と中のデータがずれません</strong>。</p>
+        <p class="analogy">たとえ：黒板の「元の表」を書き直してから、掲示板の貼り紙を全部貼り替えるイメージです。</p>
+        <p class="real">本物のアプリでは、「元の表」は APIサーバーの向こうにあるデータベースになります。モックは表をページの中に持っているので、<strong>再読み込みすると見本データに戻ります</strong>（不具合ではありません）。</p>
+        <p class="related">関係するチェック：A1</p>
+      </article>
+
+      <article class="mech">
+        <h3><span class="mech-no">2</span>並び順は「番号」で決まる</h3>
+        <p>各タスクは「どのカラムにいるか（<code>status</code>）」と「上から何番目か（<code>position</code>：0, 1, 2…）」を持っています。D&amp;D すると、移動元と移動先のカラムの番号を振り直します。削除すると、残りの番号が詰まります。</p>
+        <div class="example">
+          <p>例：作業中が［請求書=0, React=1］のとき、企画書を2番目に入れる</p>
+          <p>→［請求書=0, <strong>企画書=1</strong>, React=2］　未着手のほうも番号が詰まる</p>
+        </div>
+        <p class="related">関係するチェック：C5, D1〜D4</p>
+      </article>
+
+      <article class="mech">
+        <h3><span class="mech-no">3</span>「どのカラムか」と「✓」は別の情報</h3>
+        <p>「どのカラムにいるか（<code>status</code>）」と「✓が付いているか（<code>isCompleted</code>）」は別々に記録しています。だから <strong>✓を付けても完了カラムへは動かず、完了へ動かしても ✓ は付きません</strong>（決定事項 Q2）。「作業中だけど実は終わった」も表せます。</p>
+        <p class="related">関係するチェック：E1〜E3</p>
+      </article>
+
+      <article class="mech">
+        <h3><span class="mech-no">4</span>保存のやり方は2種類</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>操作</th><th>保存のやり方</th><th>保存に失敗したら</th></tr></thead>
+            <tbody>
+              <tr><td>D&amp;D・✓・整列</td><td><strong>先に画面を変え</strong>、裏で保存する</td><td>元に戻して、赤いメッセージを出す</td></tr>
+              <tr><td>作成・編集・削除・ラベル・ボード名</td><td><strong>保存の返事を待ってから</strong>画面に反映。待つ間は「保存中…」でボタンを押せない</td><td>モーダルを開いたまま、入力を残してエラーを出す</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>よく使う操作は軽く感じられるように先に動かし、作成などは「二重に登録される」「入力が消える」を防ぐために返事を待ちます（R-24）。モックでは、サーバーの代わりに<strong>0.3秒待つ真似</strong>をしています。モック用パネルの「保存を失敗させる」を使うと、失敗したときの動きを見られます。</p>
+        <p class="related">関係するチェック：B4, I1〜I3</p>
+      </article>
+
+      <article class="mech">
+        <h3><span class="mech-no">5</span>整列は「ルールどおりに1回並べ直す」ボタン</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>整列</th><th>並ぶ順番</th><th>同じ値のとき</th></tr></thead>
+            <tbody>
+              <tr><td>優先度順</td><td>高 → 中 → 低 → なし</td><td>期限の早い順</td></tr>
+              <tr><td>期限順</td><td>期限の早い順。期限なしは一番下</td><td>優先度の高い順</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>どちらの場合も、<strong>✓の付いたカードは一番下</strong>にまとめます（Q15）。並べ直した結果は「番号」として保存されるだけなので、そのあと D&amp;D で自由に動かせます（Q9）。</p>
+        <p class="related">関係するチェック：D5〜D7</p>
+      </article>
+
+      <article class="mech">
+        <h3><span class="mech-no">6</span>ラベルはボードごと、絞り込みは「見え方」だけを変える</h3>
+        <p>ラベルは「どのボードのものか」を持っているので、仕事のラベルはプライベートには出てきません（Q12）。タスクは付いているラベルの番号の一覧（<code>labelIds</code>）を持っていて、ラベルを削除すると、全部のタスクからその番号を外します。</p>
+        <p>絞り込みは<strong>データを変えずに、表示するカードを選んでいるだけ</strong>です。隠れているカードがあると「どこに入れればよいか」が決められないため、絞り込み中は D&amp;D・整列・タスクの追加を止めています（R-20）。</p>
+        <p>ラベル管理では保存ボタンを置かず、色や名前を<strong>変えるとすぐ保存</strong>します（Q22・R-32）。</p>
+        <p class="related">関係するチェック：G2, G3, G5, H1〜H4</p>
+      </article>
+
+      <article class="mech">
+        <h3><span class="mech-no">7</span>入力チェックは2回</h3>
+        <div class="flow">
+          <span class="flow-box">1回目：画面<small>空なら「作成」を押せない・文字数で入力が止まる</small></span><span class="flow-arrow">→</span>
+          <span class="flow-box">2回目：データを作るとき<small>空白だけ・文字数・選べる値・件数の上限・重複</small></span>
+        </div>
+        <p>画面のチェックは、やろうと思えばすり抜けられます。そのため、データを作る側でもう一度確かめます。本物のアプリでは、2回目は<strong>サーバー</strong>で行います（N-12）。</p>
+        <p class="related">関係するチェック：B2, B7, F4, G4</p>
+      </article>
+
+      <article class="mech">
+        <h3><span class="mech-no">8</span>モーダルとフォーカスの約束</h3>
+        <ul>
+          <li>外側の暗い部分をクリックしても<strong>閉じない</strong>（うっかり入力が消えるのを防ぐ）</li>
+          <li>「キャンセル」・×・Esc キーは、<strong>何も保存せずに閉じる</strong></li>
+          <li>閉じたら、<strong>開く前に押したボタンに戻る</strong>（キーボードで使う人が迷わないように：N-21）</li>
+        </ul>
+        <p class="related">関係するチェック：B5, B6, J2, J3</p>
+      </article>
+
+      <h3>モックと本物のアプリの違い</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th></th><th>モック（今回）</th><th>本物のアプリ（これから作る）</th></tr></thead>
+          <tbody>
+            <tr><td>データの置き場所</td><td>ページの中。再読み込みで見本に戻る</td><td>データベース</td></tr>
+            <tr><td>保存</td><td>0.3秒待つ真似</td><td>APIサーバーに送って保存</td></tr>
+            <tr><td>他の人の変更</td><td>なし（自分だけ）</td><td>タブに戻ったときに読み込む（R-27）</td></tr>
+            <tr><td>毎日のリセット</td><td>再読み込みで代わりにする</td><td>毎日午前4時に自動（F-55）</td></tr>
+            <tr><td>モック用パネル</td><td>ある（確認用）</td><td>ない</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>ファイルの役割</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ファイル</th><th>役割</th><th>たとえ</th></tr></thead>
+          <tbody>
+            <tr><td><code>index.html</code></td><td>画面の骨組み（6画面の箱）</td><td>建物の間取り</td></tr>
+            <tr><td><code>css/style.css</code></td><td>色・大きさ・並べ方</td><td>内装</td></tr>
+            <tr><td><code>js/data.js</code></td><td>決まった値（カラム・色・上限）と見本データ</td><td>最初から置いてある家具</td></tr>
+            <tr><td><code>js/store.js</code></td><td>データを持ち、作る・動かす・消す。入力チェックもここ</td><td>帳簿係</td></tr>
+            <tr><td><code>js/ui.js</code></td><td>部品づくり・エラー表示・モーダルの開け閉め</td><td>道具箱</td></tr>
+            <tr><td><code>js/board.js</code></td><td>ボード画面の表示と、D&amp;D・✓・整列・絞り込み</td><td>掲示係</td></tr>
+            <tr><td><code>js/task-modal.js</code></td><td>タスクの作成・編集・削除確認</td><td>受付窓口</td></tr>
+            <tr><td><code>js/label-modal.js</code></td><td>ラベル管理と、ラベルの削除確認</td><td>ラベル係</td></tr>
+            <tr><td><code>js/app.js</code></td><td>起動と、モック用パネル</td><td>開店準備</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ========== 3. チェックリスト ========== -->
+    <section id="checklist" class="section">
+      <h2>3. 検証チェックリスト</h2>
+      <p>各項目の「やること」を試して、「こうなればOK」と同じなら <b>OK</b>、違ったら <b>要修正</b> を選んでください。違和感や「こうしてほしい」があれば、OK でもメモに書いてください。右上の番号（F-10 など）は、仕様書のどこに書いてあるかを表しています。</p>
+      <div class="checklist-tools">
+        <label class="switch"><input type="checkbox" id="core-only"> ★ まずはここ の13項目だけ表示</label>
+        <button type="button" class="btn btn-small" id="reset-records">記録をリセット</button>
+      </div>
+
+      <section class="group">
+        <h3>A. ボード画面の表示 <span class="group-count"></span></h3>
+        <ol class="checklist">
+          <li data-id="A1" data-core data-title="開くと読み込み中→ボード表示" data-spec="F-01, F-52">
+            <p>モックを開く（または再読み込みする）</p>
+            <p>一瞬「読み込み中…」が出てから、「仕事」ボードが表示される。作業していた内容は見本データに戻っている</p>
+          </li>
+          <li data-id="A2" data-title="公開デモの案内" data-spec="F-54">
+            <p>画面の一番上を見る</p>
+            <p>「公開デモです。誰でも編集でき…」の案内がいつも出ている</p>
+          </li>
+          <li data-id="A3" data-title="カラムの件数" data-spec="F-05">
+            <p>各カラムの見出しを見る</p>
+            <p>「未着手 (3)」のように、中のカードの数が出ている</p>
+          </li>
+          <li data-id="A4" data-title="カードに出る情報" data-spec="R-08, R-09">
+            <p>いくつかのカードを見比べる</p>
+            <p>上から「ラベル」「○＋タイトル」「優先度・期限・📝」の順で出ている。設定していないもの（例：優先度なし）は出ない</p>
+          </li>
+          <li data-id="A5" data-title="期限の表示" data-spec="R-11">
+            <p>「企画書を書く」と「来年度の計画を立てる」の期限を見る</p>
+            <p>今年は「〆10/31」、来年は「〆2027/1/15」のように年が付く</p>
+          </li>
+          <li data-id="A6" data-title="完了マーク済みの見た目" data-spec="F-31">
+            <p>完了カラムのカードを見る</p>
+            <p>✓・取り消し線・少しグレーの背景になっている。文字は読める濃さ</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="group">
+        <h3>B. タスクの作成（S-02） <span class="group-count"></span></h3>
+        <ol class="checklist">
+          <li data-id="B1" data-core data-title="押したカラムが最初から入る" data-spec="R-02, AC-02">
+            <p>「作業中」の下の「＋ タスクを追加」を押す</p>
+            <p>「タスクを作成」が開き、「カラム」欄が最初から「作業中」になっている。タイトル欄にカーソルがある</p>
+          </li>
+          <li data-id="B2" data-title="タイトルが空だと作成できない" data-spec="R-03, AC-03">
+            <p>タイトルを空のまま、またはスペースだけ入れる</p>
+            <p>「作成」ボタンが押せない（薄くなっている）</p>
+          </li>
+          <li data-id="B3" data-core data-title="作成すると一番下に入る" data-spec="R-01, F-10">
+            <p>タイトル・優先度・期限・ラベル（2つ）を入れて「作成」</p>
+            <p>モーダルが閉じ、作業中の<strong>一番下</strong>にカードが出る。件数が1つ増える。入れた優先度・期限・ラベルがカードに出ている</p>
+          </li>
+          <li data-id="B4" data-title="作成中は保存中…" data-spec="R-24">
+            <p>「作成」を押した瞬間のボタンを見る（0.3秒なので一瞬です）</p>
+            <p>一瞬「保存中…」になり、その間は押せない</p>
+          </li>
+          <li data-id="B5" data-title="キャンセル・×・Escで破棄" data-spec="R-03">
+            <p>途中まで入力して「キャンセル」。次に ×、次に Esc キーでも試す</p>
+            <p>どれでもモーダルが閉じ、タスクは作られない</p>
+          </li>
+          <li data-id="B6" data-title="外側クリックで閉じない" data-spec="R-03">
+            <p>モーダルの外側（暗くなっている部分）をクリックする</p>
+            <p>モーダルは閉じず、入力も消えない</p>
+          </li>
+          <li data-id="B7" data-title="文字数の上限" data-spec="R-06">
+            <p>タイトルに長い文章を貼り付ける</p>
+            <p>100文字でそれ以上は入らない（説明は1000文字まで）</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="group">
+        <h3>C. 編集と削除（S-03・S-04） <span class="group-count"></span></h3>
+        <ol class="checklist">
+          <li data-id="C1" data-title="カードを押すと編集が開く" data-spec="F-11">
+            <p>カードのタイトルか、カードの空いている所を押す</p>
+            <p>「タスクを編集」が開き、今の内容が入っている。下に「削除」ボタンがある</p>
+          </li>
+          <li data-id="C2" data-core data-title="編集のキャンセル" data-spec="AC-04">
+            <p>タイトルを書き換えてから「キャンセル」</p>
+            <p>カードのタイトルは書き換える前のまま</p>
+          </li>
+          <li data-id="C3" data-core data-title="カラムを変えて保存" data-spec="R-04, AC-05">
+            <p>編集モーダルで「カラム」を「完了」に変えて「保存」</p>
+            <p>カードが完了カラムの<strong>一番下</strong>に移る</p>
+          </li>
+          <li data-id="C4" data-title="削除確認でキャンセル" data-spec="AC-06">
+            <p>編集モーダルの「削除」→ 確認で「キャンセル」</p>
+            <p>確認にタスク名が出ている。キャンセルすると編集モーダルに戻り、カードは残っている</p>
+          </li>
+          <li data-id="C5" data-core data-title="削除する" data-spec="F-12, R-13">
+            <p>もう一度「削除」→「削除する」</p>
+            <p>モーダルが全部閉じ、カードが消え、件数が1つ減る</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="group">
+        <h3>D. ドラッグ＆ドロップと整列 <span class="group-count"></span></h3>
+        <ol class="checklist">
+          <li data-id="D1" data-core data-title="別カラムの好きな位置へ移動" data-spec="F-20, F-22, AC-07">
+            <p>「企画書を書く」をつかんで、作業中の1枚目と2枚目の間で離す</p>
+            <p>動かしている間、入る位置に青い線が出る。離すと作業中の2番目に入る</p>
+          </li>
+          <li data-id="D2" data-title="同じカラム内の並び替え" data-spec="F-21">
+            <p>同じカラムの中で、カードを上や下へ動かす</p>
+            <p>離した位置に並び替わる</p>
+          </li>
+          <li data-id="D3" data-title="空のカラムにも入れられる" data-spec="R-14">
+            <p>あるカラムのカードを全部ほかへ動かして空にし、そこへカードを1枚戻す</p>
+            <p>空のカラムにも入れられる</p>
+          </li>
+          <li data-id="D4" data-title="カラムの外で離すと戻る" data-spec="R-15">
+            <p>カードをつかんで、カラムの外（青い背景の所）で離す</p>
+            <p>カードは元の場所に戻る</p>
+          </li>
+          <li data-id="D5" data-core data-title="優先度順の整列" data-spec="F-23, Q15">
+            <p>「作業中」の「⋯」→「優先度順に並べる」（✓付きのカードがある状態で）</p>
+            <p>高 → 中 → 低 → なし の順。同じ優先度は期限の早い順。<strong>✓付きは一番下</strong></p>
+          </li>
+          <li data-id="D6" data-title="期限順の整列" data-spec="F-23">
+            <p>どこかのカラムで「⋯」→「期限順に並べる」</p>
+            <p>期限の早い順。期限なしは一番下（✓付きはさらに下）</p>
+          </li>
+          <li data-id="D7" data-title="整列のあとも手で動かせる" data-spec="Q9">
+            <p>整列したあと、カードを D&amp;D する</p>
+            <p>自由に動かせる（整列し直されたりしない）</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="group">
+        <h3>E. 完了マーク（✓） <span class="group-count"></span></h3>
+        <ol class="checklist">
+          <li data-id="E1" data-core data-title="✓を付けても移動しない" data-spec="F-30, F-32">
+            <p>作業中のカードの ○ を押す。もう一度押す</p>
+            <p>1回目で ✓・取り消し線が付き、カードは<strong>作業中のまま</strong>。2回目で元に戻る</p>
+          </li>
+          <li data-id="E2" data-title="○を押しても編集は開かない" data-spec="R-12">
+            <p>○ を押したときの様子を見る</p>
+            <p>編集モーダルは開かない</p>
+          </li>
+          <li data-id="E3" data-title="完了へ動かしても✓は付かない" data-spec="F-32">
+            <p>✓の付いていないカードを完了カラムへ D&amp;D する</p>
+            <p>完了に移るが、✓は付かない</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="group">
+        <h3>F. ボードの切り替えと名前 <span class="group-count"></span></h3>
+        <ol class="checklist">
+          <li data-id="F1" data-core data-title="ボードの切り替え" data-spec="F-02, AC-11">
+            <p>仕事でタスクを1つ作ってから「プライベート」タブを押す。また「仕事」に戻る</p>
+            <p>プライベートにはそのタスクもラベルも出ない。仕事に戻るとちゃんとある</p>
+          </li>
+          <li data-id="F2" data-title="ダブルクリックで名前変更" data-spec="F-03, R-23">
+            <p>「プライベート」タブをダブルクリック →「勉強」と入れて Enter</p>
+            <p>タブの名前が「勉強」になる</p>
+          </li>
+          <li data-id="F3" data-title="Esc・空の名前は元に戻る" data-spec="R-23">
+            <p>名前を変える途中で Esc。次に、名前を全部消して Enter</p>
+            <p>どちらも元の名前のまま</p>
+          </li>
+          <li data-id="F4" data-title="同じ名前にはできない" data-spec="R-23">
+            <p>2つ目のボードの名前を「仕事」にしようとする</p>
+            <p>「もう一方のボードと同じ名前にはできません」と赤いメッセージが出て、元の名前に戻る</p>
+          </li>
+          <li data-id="F5" data-title="F2キーで名前変更" data-spec="R-23, Q23">
+            <p>タブを一度押してから、キーボードの F2 キーを押す。名前を変えて Enter</p>
+            <p>名前の入力欄になり、確定すると名前が変わって、そのタブに枠（フォーカス）が戻る</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="group">
+        <h3>G. ラベル（S-05・S-06） <span class="group-count"></span></h3>
+        <ol class="checklist">
+          <li data-id="G1" data-title="開いているボードのラベルだけ" data-spec="F-43">
+            <p>「ラベル管理」を押す</p>
+            <p>今のボードのラベルだけが並び、「6 / 20 個」のように数が出ている</p>
+          </li>
+          <li data-id="G2" data-title="色・名前はすぐ保存" data-spec="R-32, Q22">
+            <p>あるラベルの色を変える。名前を変えて Enter を押す</p>
+            <p>保存ボタンを押さなくても、すぐにカードのラベルにも反映される</p>
+          </li>
+          <li data-id="G3" data-title="入力中の文字が消えない" data-spec="R-32">
+            <p>ある名前を変えて、すぐ別のラベルの名前欄に移って文字を打つ</p>
+            <p>前の保存が終わっても、打っている途中の文字が消えない</p>
+          </li>
+          <li data-id="G4" data-title="同じ色・同じ名前は作れない" data-spec="R-17">
+            <p>すでにあるラベルと同じ色・同じ名前で「＋ 追加」</p>
+            <p>「色も名前も同じラベルがすでにあります」と出て、作られない。同じ色で別の名前なら作れる</p>
+          </li>
+          <li data-id="G5" data-core data-title="ラベルの削除" data-spec="R-18, AC-13">
+            <p>カードに付いているラベルの 🗑 →「削除する」</p>
+            <p>確認に「n 件のタスクから外れます」と出る。削除すると、カードからもそのラベルが消える（カード自体は残る）</p>
+          </li>
+          <li data-id="G6" data-title="ラベルを複数付ける" data-spec="F-40">
+            <p>作成・編集モーダルでラベルを2つ以上選んで保存</p>
+            <p>カードに全部のラベルが並ぶ</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="group">
+        <h3>H. ラベルで絞り込み <span class="group-count"></span></h3>
+        <ol class="checklist">
+          <li data-id="H1" data-core data-title="2つ選んで絞り込み" data-spec="R-19, AC-14">
+            <p>「ラベルで絞り込み」で「緊急」と「請求」を選ぶ</p>
+            <p>どちらかのラベルが付いたカードだけが表示される</p>
+          </li>
+          <li data-id="H2" data-title="件数が 表示中/全体" data-spec="R-21">
+            <p>絞り込み中のカラム見出しを見る</p>
+            <p>「(2/5)」のように「表示中の数／全体の数」になっている</p>
+          </li>
+          <li data-id="H3" data-title="絞り込み中はできないこと" data-spec="R-20">
+            <p>絞り込み中に、D&amp;D・「⋯」の整列・「＋ タスクを追加」を試す</p>
+            <p>どれもできない（＋は表示されない）。黄色い帯で「絞り込み中」と分かる。✓と編集はできる</p>
+          </li>
+          <li data-id="H4" data-title="切り替えで解除" data-spec="R-22">
+            <p>絞り込み中にボードを切り替える</p>
+            <p>絞り込みが解除される</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="group">
+        <h3>I. うまくいかないとき（モック用パネルを使う） <span class="group-count"></span></h3>
+        <p class="group-note">モックの右下「🛠 モック用パネル」を開いて使います。終わったら「保存を失敗させる」のチェックを外してください。</p>
+        <ol class="checklist">
+          <li data-id="I1" data-core data-title="D&amp;Dの保存失敗" data-spec="R-24, AC-08">
+            <p>「保存を失敗させる」にチェック → カードを D&amp;D する</p>
+            <p>いったん動いたあと元の位置に戻り、画面上部に赤いメッセージが出る</p>
+          </li>
+          <li data-id="I2" data-title="✓の保存失敗" data-spec="R-24">
+            <p>同じ状態で ○ を押す</p>
+            <p>一瞬 ✓ が付いたあと、元に戻る</p>
+          </li>
+          <li data-id="I3" data-title="作成の保存失敗" data-spec="R-25">
+            <p>同じ状態でタスクを作成する</p>
+            <p>モーダルは開いたまま、入力も残って、モーダルの中にエラーが出る</p>
+          </li>
+          <li data-id="I4" data-title="サーバーに接続できない" data-spec="R-26, AC-17">
+            <p>パネルで「サーバーに接続できない」を選ぶ</p>
+            <p>「サーバーに接続できません」と「再読み込み」ボタンが出る。画面は真っ白にならない</p>
+          </li>
+          <li data-id="I5" data-title="再読み込みで戻る" data-spec="R-22, F-52">
+            <p>絞り込みをしてから I4 の状態にし、「再読み込み」を押す</p>
+            <p>「読み込み中…」のあと通常の画面に戻り、絞り込みは解除されている</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="group">
+        <h3>J. 見た目と使いやすさ <span class="group-count"></span></h3>
+        <ol class="checklist">
+          <li data-id="J1" data-title="スマホ幅" data-spec="N-02">
+            <p>ブラウザの幅をスマホくらいまで狭くする</p>
+            <p>ページ全体は横にはみ出さず、ボードの部分だけ横にスクロールできる</p>
+          </li>
+          <li data-id="J2" data-title="キーボードだけで操作" data-spec="N-19, N-21">
+            <p>マウスを使わず、Tab キーで移動して Enter・Space で押してみる</p>
+            <p>今どこにいるか枠で分かり、作成・編集・✓などができる</p>
+          </li>
+          <li data-id="J3" data-title="閉じたら元のボタンに戻る" data-spec="N-21">
+            <p>キーボードでモーダルを開き、Esc で閉じる</p>
+            <p>開く前のボタン（またはカード）に枠が戻る</p>
+          </li>
+          <li data-id="J4" data-title="全体の見た目" data-spec="見た目はTrello風">
+            <p>全体を眺める</p>
+            <p>Trello 風の見た目として違和感がない（色・文字の大きさ・余白で気になる所があればメモへ）</p>
+          </li>
+        </ol>
+      </section>
+    </section>
+
+    <!-- ========== 4. 理解度チェック ========== -->
+    <section id="quiz" class="section">
+      <h2>4. 理解度チェック</h2>
+      <p>仕組みが分かっているか、答えを考えてから開いてみてください。</p>
+      <details class="quiz"><summary>Q1. ✓を付けると、カードは「完了」カラムへ移る？</summary>
+        <p><b>移りません。</b>「どのカラムか」と「✓」は別の情報だからです（仕組み3・Q2）。</p></details>
+      <details class="quiz"><summary>Q2. 絞り込み中に D&amp;D できないのはなぜ？</summary>
+        <p><b>隠れているカードとの順番が決められないから</b>です。絞り込みは見え方を変えているだけで、データには隠れたカードも並んでいます（仕組み6・R-20）。</p></details>
+      <details class="quiz"><summary>Q3. D&amp;D はすぐ動くのに、作成は「保存中…」を待つのはなぜ？</summary>
+        <p>よく使う操作は<b>軽く感じられるように先に動かし</b>、作成などは<b>二重登録や入力の消失を防ぐために返事を待つ</b>からです（仕組み4・R-24）。</p></details>
+      <details class="quiz"><summary>Q4. 再読み込みすると作ったタスクが消えるのは不具合？</summary>
+        <p><b>不具合ではありません。</b>モックはデータをページの中だけに持っているので、見本に戻ります。本物はデータベースに保存します（仕組み1）。</p></details>
+      <details class="quiz"><summary>Q5. ラベルを削除すると、そのラベルが付いていたタスクはどうなる？</summary>
+        <p><b>タスクは残り、ラベルだけが外れます</b>（仕組み6・R-18）。</p></details>
+      <details class="quiz"><summary>Q6. 優先度順に並べたとき、「高・✓あり」と「低・✓なし」はどちらが上？</summary>
+        <p><b>「低・✓なし」が上</b>です。✓の付いたカードは、優先度に関係なく一番下にまとめます（仕組み5・Q15）。</p></details>
+      <details class="quiz"><summary>Q7. 「仕事」ボードで作ったラベルは「プライベート」でも使える？</summary>
+        <p><b>使えません。</b>ラベルはボードごとに別々です（仕組み6・Q12）。</p></details>
+      <details class="quiz"><summary>Q8. タイトルが空でも作成できないのは、画面のチェック？データのチェック？</summary>
+        <p><b>両方</b>です。画面では「作成」を押せなくし、データを作るときにももう一度確かめます。本物ではサーバーで確かめます（仕組み7・N-12）。</p></details>
+    </section>
+
+    <!-- ========== 5. 結果の送り方 ========== -->
+    <section id="report" class="section">
+      <h2>5. 結果の送り方</h2>
+      <ol class="steps">
+        <li>下の「結果をコピー」を押します（右上のボタンでも同じです）。</li>
+        <li>Claude のチャットに貼り付けて送ります。</li>
+        <li>「要修正」の項目とメモをもとに、モックと仕様書を直します。</li>
+      </ol>
+      <p><button type="button" class="btn btn-primary" data-copy-report>結果をコピー</button></p>
+      <label class="report-label" for="report-text">コピーされる内容（自動でコピーできないときは、ここから選んでコピーしてください）</label>
+      <textarea id="report-text" rows="10" readonly></textarea>
+    </section>
+  </main>
+
+  <p class="toast" id="toast" role="status" hidden></p>
+  <script src="js/guide.js"></script>
+</body>
+</html>
