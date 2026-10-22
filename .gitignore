@@ -1,0 +1,5 @@
+# Claude Code の個人用の設定（許可リストなど）。GitHub には上げない
+.claude/settings.local.json
+
+# ブラウザ確認ツール（Playwright）が出す作業記録
+.playwright-mcp/
