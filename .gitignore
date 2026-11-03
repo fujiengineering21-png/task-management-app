@@ -3,3 +3,8 @@
 
 # ブラウザ確認ツール（Playwright）が出す作業記録
 .playwright-mcp/
+
+# データベースのパスワードなど、秘密の設定（見本の .env.example だけは GitHub に上げる）
+.env
+.env.*
+!.env.example

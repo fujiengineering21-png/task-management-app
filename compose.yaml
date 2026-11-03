@@ -1,0 +1,27 @@
+# TaskBoard の開発用データベース（PostgreSQL 17）
+# 起動：リポジトリ直下で docker compose up -d ／ 停止：docker compose stop
+# 設定の値は .env から読む（見本は .env.example）
+name: taskboard
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?.env がありません。.env.example をコピーして作ってください}
+      POSTGRES_USER: ${POSTGRES_USER:?.env がありません。.env.example をコピーして作ってください}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?.env がありません。.env.example をコピーして作ってください}
+    ports:
+      # 自分の PC（127.0.0.1）からだけ接続できるようにする
+      - "127.0.0.1:${TASKBOARD_DB_PORT:?.env がありません。.env.example をコピーして作ってください}:5432"
+    volumes:
+      # データはここに残る。コンテナを作り直しても消えない
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      # 接続を受け付けられるかを確かめる。-h を付けて、初期化の途中を「準備完了」と見ないようにする
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db-data:
