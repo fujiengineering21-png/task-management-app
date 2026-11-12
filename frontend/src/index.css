@@ -1,0 +1,42 @@
+@import 'tailwindcss';
+
+/* 色はモック（mock/css/style.css）と同じにする */
+@theme {
+  --color-board: #0067a3;
+  --color-banner: #172b4d;
+  --color-column: #f1f2f4;
+  --color-card-done: #f7f8f9;
+  --color-ink: #172b4d;
+  --color-subtle: #44546f;
+  --color-line: #dcdfe4;
+  --color-primary: #0c66e4;
+  --color-primary-hover: #0055cc;
+  --color-danger: #c9372c;
+  --color-danger-bg: #ffeceb;
+  --color-check: #1f845a;
+
+  /* ラベルの6色（F-41） */
+  --color-label-green: #1f845a;
+  --color-label-yellow: #f5cd47;
+  --color-label-orange: #fea362;
+  --color-label-red: #c9372c;
+  --color-label-purple: #6e5dc6;
+  --color-label-blue: #0c66e4;
+
+  /* 優先度のバッジ（F-13） */
+  --color-priority-high: #ae2e24;
+  --color-priority-high-bg: #ffeceb;
+  --color-priority-medium: #7f5f01;
+  --color-priority-medium-bg: #fff7d6;
+  --color-priority-low: #0055cc;
+  --color-priority-low-bg: #e9f2ff;
+}
+
+body {
+  margin: 0;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP',
+    sans-serif;
+  color: var(--color-ink);
+  background: var(--color-board);
+}
