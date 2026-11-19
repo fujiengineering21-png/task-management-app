@@ -171,7 +171,13 @@
       "Bash(rtk git update-ref -d *)",
       "Bash(rtk git worktree remove *)",
 
-      "Bash(npm publish *)"
+      "Bash(npm publish *)",
+
+      "Bash(*--port*)",
+      "Bash(*--server.port*)",
+      "Bash(*-Dserver.port*)",
+      "Bash(*SERVER_PORT=*)",
+      "Bash(*TASKBOARD_DB_PORT=*)"
     ]
   }
 }
