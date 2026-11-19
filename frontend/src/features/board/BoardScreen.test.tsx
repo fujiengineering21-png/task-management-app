@@ -105,6 +105,22 @@ describe('BoardScreen（ボード画面 S-01）', () => {
     expect(screen.getByRole('heading', { name: '未着手 (3)' })).toBeInTheDocument()
   })
 
+  it('読み直したボードの一覧から、選んでいたボードがなくなったら、一番左のボードを開く', async () => {
+    const user = userEvent.setup()
+    renderWithClient(<BoardScreen />)
+    await screen.findByText('経費の精算を出す')
+    await user.click(screen.getByRole('button', { name: 'プライベート' }))
+    await screen.findByText('日用品を買う')
+
+    act(() => focusManager.setFocused(false))
+    server.use(http.get('*/api/boards', () => ok([{ id: 1, name: '仕事', position: 0 }])))
+    act(() => focusManager.setFocused(true))
+
+    expect(await screen.findByText('経費の精算を出す')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '仕事' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('button', { name: 'プライベート' })).not.toBeInTheDocument()
+  })
+
   describe('キーワード検索（F-60）', () => {
     function searchBox(): HTMLElement {
       return screen.getByRole('searchbox', { name: 'キーワードで検索' })
@@ -147,7 +163,7 @@ describe('BoardScreen（ボード画面 S-01）', () => {
       expect(screen.getByRole('status')).toHaveTextContent('（全4件中0件）')
     })
 
-    it('「解除」を押すと、検索の文字を消して全部の表示と件数に戻す', async () => {
+    it('「解除」を押すと、検索の文字を消して全部の表示と件数に戻し、検索欄にフォーカスを戻す', async () => {
       const user = userEvent.setup()
       renderWithClient(<BoardScreen />)
       await screen.findByText('経費の精算を出す')
@@ -156,9 +172,24 @@ describe('BoardScreen（ボード画面 S-01）', () => {
       await user.click(screen.getByRole('button', { name: '解除' }))
 
       expect(searchBox()).toHaveValue('')
+      expect(searchBox()).toHaveFocus()
       expect(screen.getByText('経費の精算を出す')).toBeInTheDocument()
       expect(screen.getByRole('heading', { name: '未着手 (2)' })).toBeInTheDocument()
-      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: '解除' })).not.toBeInTheDocument()
+      // 読み上げ用の場所は残したまま、中身だけを空にする（あとから入れた場所は読み上げられないことがあるため）
+      expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    })
+
+    it('選んでいるボードのタブをもう一度押しても、検索は解除しない', async () => {
+      const user = userEvent.setup()
+      renderWithClient(<BoardScreen />)
+      await screen.findByText('経費の精算を出す')
+      await user.type(searchBox(), 'まとめる')
+
+      await user.click(screen.getByRole('button', { name: '仕事' }))
+
+      expect(searchBox()).toHaveValue('まとめる')
+      expect(screen.getByRole('heading', { name: '作業中 (1/1)' })).toBeInTheDocument()
     })
 
     it('ボードを切り替えると、検索を解除する（R-22）', async () => {

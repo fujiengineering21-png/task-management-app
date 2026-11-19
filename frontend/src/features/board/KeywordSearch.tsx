@@ -1,12 +1,17 @@
+import type { Ref } from 'react'
+
 interface KeywordSearchProps {
   value: string
   onChange: (keyword: string) => void
+  /** 「解除」のあとに、フォーカスを入力欄へ戻すために使う */
+  ref?: Ref<HTMLInputElement>
 }
 
 /** キーワードの入力欄（F-60）。入力するたびに、開いているボードのタスクを画面の中で絞り込む */
-export function KeywordSearch({ value, onChange }: KeywordSearchProps) {
+export function KeywordSearch({ value, onChange, ref }: KeywordSearchProps) {
   return (
     <input
+      ref={ref}
       type="search"
       aria-label="キーワードで検索"
       placeholder="キーワードで検索"

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useBoards, useBoardTasks } from '../../api/queries'
 import type { Task } from '../../api/schemas'
 import { LoadError, Loading } from '../../components/StatusMessage'
@@ -15,21 +15,31 @@ export function BoardScreen() {
   const [selectedId, setSelectedId] = useState<number | undefined>(undefined)
   // 検索の文字は保存しない。再読み込みすると消える（R-22）
   const [keyword, setKeyword] = useState('')
-
-  // ボードを切り替えたら、検索を解除する（R-22）
-  function selectBoard(boardId: number) {
-    setSelectedId(boardId)
-    setKeyword('')
-  }
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   // タブは position の順（0＝左）。届いた一覧は変えずに、並べ替えた写しを使う
   const boards = useMemo(
     () => [...(boardsQuery.data ?? [])].sort((a, b) => a.position - b.position),
     [boardsQuery.data],
   )
-  // 最初は一番左のボードを開く
-  const currentId = selectedId ?? boards[0]?.id
+  // 最初は一番左のボードを開く。選んでいたボードが読み直した一覧にないときも、一番左に戻す
+  const currentId = boards.some((board) => board.id === selectedId) ? selectedId : boards[0]?.id
   const tasksQuery = useBoardTasks(currentId)
+
+  // ボードを切り替えたら、検索を解除する（R-22）。開いているタブをもう一度押したときは、そのまま
+  function selectBoard(boardId: number) {
+    if (boardId === currentId) {
+      return
+    }
+    setSelectedId(boardId)
+    setKeyword('')
+  }
+
+  // 「解除」のボタンは押すと消えるので、フォーカスを検索欄に戻す（キーボードで続けて操作できるように）
+  function clearKeyword() {
+    setKeyword('')
+    searchInputRef.current?.focus()
+  }
 
   if (boardsQuery.isPending) {
     return <Loading />
@@ -54,7 +64,7 @@ export function BoardScreen() {
         <h1 className="m-0 text-lg font-bold">TaskBoard</h1>
         <BoardTabs boards={boards} selectedId={currentId} onSelect={selectBoard} />
         <div className="ml-auto">
-          <KeywordSearch value={keyword} onChange={setKeyword} />
+          <KeywordSearch ref={searchInputRef} value={keyword} onChange={setKeyword} />
         </div>
       </header>
       <main className="flex-1 overflow-x-auto p-4">
@@ -65,7 +75,7 @@ export function BoardScreen() {
           isFetching={tasksQuery.isFetching}
           onRetry={() => void tasksQuery.refetch()}
           keyword={keyword}
-          onClearKeyword={() => setKeyword('')}
+          onClearKeyword={clearKeyword}
         />
       </main>
     </div>
@@ -108,14 +118,13 @@ function BoardBody({
 
   return (
     <div className="flex flex-col gap-3">
-      {filtering && (
-        <SearchStatus
-          keyword={keyword.trim()}
-          visibleCount={visibleTasks.length}
-          totalCount={tasks.length}
-          onClear={onClearKeyword}
-        />
-      )}
+      <SearchStatus
+        filtering={filtering}
+        keyword={keyword.trim()}
+        visibleCount={visibleTasks.length}
+        totalCount={tasks.length}
+        onClear={onClearKeyword}
+      />
       <div className="flex items-start gap-3">
         {COLUMNS.map((column) => (
           <Column
@@ -132,26 +141,39 @@ function BoardBody({
 }
 
 interface SearchStatusProps {
+  filtering: boolean
   keyword: string
   visibleCount: number
   totalCount: number
   onClear: () => void
 }
 
-/** 絞り込み中であることと、何件中何件を出しているかの表示（R-20）。「解除」で全部の表示に戻す */
-function SearchStatus({ keyword, visibleCount, totalCount, onClear }: SearchStatusProps) {
+/**
+ * 絞り込み中であることと、何件中何件を出しているかの表示（R-20）。「解除」で全部の表示に戻す。
+ * 読み上げの場所（role="status"）は、あとから入れると読み上げられないことがあるので、いつも置いておき、中身だけを変える。
+ * 絞り込んでいないときは、画面からは隠す（場所も取らない）
+ */
+function SearchStatus({
+  filtering,
+  keyword,
+  visibleCount,
+  totalCount,
+  onClear,
+}: SearchStatusProps) {
   return (
-    <div className="flex items-center gap-3 text-sm text-white">
+    <div className={filtering ? 'flex items-center gap-3 text-sm text-white' : 'sr-only'}>
       <p role="status" className="m-0">
-        「{keyword}」で絞り込み中（全{totalCount}件中{visibleCount}件）
+        {filtering && `「${keyword}」で絞り込み中（全${totalCount}件中${visibleCount}件）`}
       </p>
-      <button
-        type="button"
-        onClick={onClear}
-        className="rounded-md bg-white/20 px-3 py-1 font-semibold hover:bg-white/30"
-      >
-        解除
-      </button>
+      {filtering && (
+        <button
+          type="button"
+          onClick={onClear}
+          className="rounded-md bg-white/20 px-3 py-1 font-semibold hover:bg-white/30"
+        >
+          解除
+        </button>
+      )}
     </div>
   )
 }
