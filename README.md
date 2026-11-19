@@ -37,9 +37,9 @@ AIエンジニアコース（スクール）初級編の課題1作目として�
 
 | 分野 | 主な技術 | 詳しい資料 |
 |---|---|---|
-| フロントエンド（画面） | React 19.3 ・ TypeScript 6.0 ・ Vite 8.3 ・ Tailwind CSS 4.3 ・ TanStack Query 5 ・ Zod 4 ・ Node.js 22 | [フロントエンド](docs/技術スタック/フロントエンド.md) |
-| バックエンド（APIサーバー） | Java 25（LTS）・ Spring Boot 4.1 ・ Spring Data JPA（Hibernate 7）・ Flyway 12 ・ Gradle 9 | [バックエンド](docs/技術スタック/バックエンド.md) |
-| データベース | PostgreSQL 17（開発中は Docker で動かす） | [データベース](docs/技術スタック/データベース.md) |
+| フロントエンド（画面） | React 19.3 ・ TypeScript 6.0 ・ Vite 8.3 ・ Tailwind CSS 4.3 ・ TanStack Query 5.107 ・ Zod 4.6 ・ Node.js 22.23 ・ npm 10.9 | [フロントエンド](docs/技術スタック/フロントエンド.md) |
+| バックエンド（APIサーバー） | Java 25（LTS）・ Spring Boot 4.1.2 ・ Spring Data JPA（Hibernate 7.4）・ Flyway 12.4 ・ Gradle 9.8 | [バックエンド](docs/技術スタック/バックエンド.md) |
+| データベース | PostgreSQL 17.11（開発中は Docker で動かす） | [データベース](docs/技術スタック/データベース.md) |
 | 開発ツール | Cursor ・ Claude Code ・ Git / GitHub ・ Docker ・ Vitest ・ React Testing Library ・ MSW ・ JUnit 6 ・ Mockito ・ ESLint ・ Prettier | [開発ツール](docs/技術スタック/開発ツール.md) |
 
 - TypeScript は 7 が出ていますが、書き方の点検の道具（typescript-eslint）がまだ対応していないので、6.0 を使っています。
