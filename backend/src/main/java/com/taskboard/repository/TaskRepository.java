@@ -1,6 +1,7 @@
 package com.taskboard.repository;
 
 import com.taskboard.entity.Task;
+import com.taskboard.entity.TaskStatus;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,4 +21,12 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     /** タスク1件を、ラベルとまとめて取り出す。 */
     @Query("select t from Task t left join fetch t.labels where t.id = :id")
     Optional<Task> findWithLabelsById(@Param("id") Long id);
+
+    /** 1つのボードのタスクの件数（上限 R-29 のチェックに使う）。 */
+    @Query("select count(t) from Task t where t.board.id = :boardId")
+    long countByBoardId(@Param("boardId") Long boardId);
+
+    /** 1つのカラムの、いちばん大きい position。タスクがなければ -1。 */
+    @Query("select coalesce(max(t.position), -1) from Task t where t.board.id = :boardId and t.status = :status")
+    int findMaxPosition(@Param("boardId") Long boardId, @Param("status") TaskStatus status);
 }

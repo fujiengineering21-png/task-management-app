@@ -1,12 +1,17 @@
 package com.taskboard.controller;
 
 import com.taskboard.dto.ApiResponse;
+import com.taskboard.dto.CreateTaskRequest;
 import com.taskboard.dto.TaskResponse;
 import com.taskboard.service.TaskService;
 import java.util.List;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /** タスクの API の入口。受け付けて service を呼び、共通の包みに入れて返すだけ。 */
@@ -30,5 +35,13 @@ public class TaskController {
     @GetMapping("/tasks/{taskId}")
     public ApiResponse<TaskResponse> getTask(@PathVariable Long taskId) {
         return ApiResponse.ok(taskService.findById(taskId));
+    }
+
+    /** POST /api/boards/{boardId}/tasks：タスクを作る。201 と、作ったタスク（番号付き）を返す。 */
+    @PostMapping("/boards/{boardId}/tasks")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<TaskResponse> createTask(@PathVariable Long boardId,
+            @RequestBody CreateTaskRequest request) {
+        return ApiResponse.ok(taskService.create(boardId, request));
     }
 }
