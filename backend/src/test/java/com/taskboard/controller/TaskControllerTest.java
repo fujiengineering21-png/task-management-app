@@ -3,6 +3,8 @@ package com.taskboard.controller;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -11,17 +13,22 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.taskboard.dto.CreateTaskRequest;
 import com.taskboard.dto.LabelResponse;
 import com.taskboard.dto.TaskResponse;
 import com.taskboard.service.BoardNotFoundException;
+import com.taskboard.service.InvalidTaskInputException;
+import com.taskboard.service.TaskLimitExceededException;
 import com.taskboard.service.TaskNotFoundException;
 import com.taskboard.service.TaskService;
+import org.springframework.dao.PessimisticLockingFailureException;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -138,5 +145,114 @@ class TaskControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
+    }
+
+    private static final String CREATE_BODY = """
+            {"title":"資料を印刷する","description":null,"status":"todo",
+             "priority":"high","dueDate":"2026-11-25","labelIds":[3]}
+            """;
+
+    @Test
+    @DisplayName("作成は 201 と、包みに入った作ったタスクを返す")
+    void createTaskReturns201() throws Exception {
+        TaskResponse created = new TaskResponse(14L, 1L, "todo", 3, "資料を印刷する", null,
+                false, "high", LocalDate.of(2026, 11, 25),
+                List.of(new LabelResponse(3L, "会議", "blue")));
+        CreateTaskRequest expected = new CreateTaskRequest("資料を印刷する", null, "todo", "high",
+                LocalDate.of(2026, 11, 25), List.of(3L));
+        when(taskService.create(1L, expected)).thenReturn(created);
+
+        mockMvc.perform(post("/api/boards/1/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(CREATE_BODY))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.error").value(nullValue()))
+                .andExpect(jsonPath("$.data.id").value(14))
+                .andExpect(jsonPath("$.data.position").value(3))
+                .andExpect(jsonPath("$.data.dueDate").value("2026-11-25"))
+                .andExpect(jsonPath("$.data.labels[0].id").value(3));
+    }
+
+    @Test
+    @DisplayName("入力が正しくないときは 400 と、何が正しくないかの日本語のメッセージを返す")
+    void createTaskReturns400WhenInputInvalid() throws Exception {
+        when(taskService.create(eq(1L), any()))
+                .thenThrow(new InvalidTaskInputException("タイトルを入力してください"));
+
+        mockMvc.perform(post("/api/boards/1/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(CREATE_BODY))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.error.message").value("タイトルを入力してください"));
+    }
+
+    @Test
+    @DisplayName("ボードのタスクが上限に達していたら 409 と、日本語のメッセージを返す")
+    void createTaskReturns409WhenBoardIsFull() throws Exception {
+        when(taskService.create(eq(1L), any())).thenThrow(new TaskLimitExceededException(1L));
+
+        mockMvc.perform(post("/api/boards/1/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(CREATE_BODY))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("TASK_LIMIT_REACHED"))
+                .andExpect(jsonPath("$.error.message").value("これ以上タスクを作成できません"));
+    }
+
+    @Test
+    @DisplayName("ないボードへの作成は 404 を返す")
+    void createTaskReturns404WhenBoardMissing() throws Exception {
+        when(taskService.create(eq(9999L), any())).thenThrow(new BoardNotFoundException(9999L));
+
+        mockMvc.perform(post("/api/boards/9999/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(CREATE_BODY))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("BOARD_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("壊れた JSON や、日付の形が違う中身は 400 を返す（500 にしない）")
+    void createTaskReturns400WhenBodyBroken() throws Exception {
+        for (String body : List.of("{\"title\":", "{\"title\":\"a\",\"dueDate\":\"11/25\"}", "")) {
+            mockMvc.perform(post("/api/boards/1/tasks")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.error.code").value("INVALID_BODY"))
+                    .andExpect(jsonPath("$.error.message").value("送られた内容の形が正しくありません"));
+        }
+    }
+
+    @Test
+    @DisplayName("JSON 以外の形で送られたら 415 と、包みに入ったエラーを返す")
+    void createTaskReturns415WhenNotJson() throws Exception {
+        mockMvc.perform(post("/api/boards/1/tasks")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("title=a"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("BAD_REQUEST"));
+    }
+
+    @Test
+    @DisplayName("ほかの作成とぶつかってロックを待ちきれなかったら 503 と、やり直しを促す日本語のメッセージを返す")
+    void createTaskReturns503WhenLockTimesOut() throws Exception {
+        when(taskService.create(eq(1L), any()))
+                .thenThrow(new PessimisticLockingFailureException("lock timeout"));
+
+        mockMvc.perform(post("/api/boards/1/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(CREATE_BODY))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("BUSY"))
+                .andExpect(jsonPath("$.error.message").value("混み合っています。少し待ってからもう一度お試しください"))
+                .andExpect(content().string(not(containsString("lock timeout"))));
     }
 }

@@ -3,13 +3,17 @@ package com.taskboard.controller;
 import com.taskboard.dto.ApiError;
 import com.taskboard.dto.ApiResponse;
 import com.taskboard.service.BoardNotFoundException;
+import com.taskboard.service.InvalidTaskInputException;
+import com.taskboard.service.TaskLimitExceededException;
 import com.taskboard.service.TaskNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -35,6 +39,35 @@ public class ApiExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleBoardNotFound(BoardNotFoundException ex) {
         return failure(HttpStatus.NOT_FOUND, new HttpHeaders(),
                 new ApiError("BOARD_NOT_FOUND", "ボードが見つかりません"));
+    }
+
+    /** 届いた中身のチェックに通らなかったとき（タイトルが空など）。メッセージは決まった日本語の文だけ。 */
+    @ExceptionHandler(InvalidTaskInputException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidInput(InvalidTaskInputException ex) {
+        return failure(HttpStatus.BAD_REQUEST, new HttpHeaders(),
+                new ApiError("VALIDATION_ERROR", ex.getMessage()));
+    }
+
+    /** ボードのタスクが上限（R-29）に達しているとき。 */
+    @ExceptionHandler(TaskLimitExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTaskLimit(TaskLimitExceededException ex) {
+        return failure(HttpStatus.CONFLICT, new HttpHeaders(),
+                new ApiError("TASK_LIMIT_REACHED", "これ以上タスクを作成できません"));
+    }
+
+    /** 同じボードへの作成が重なり、ロックを待ちきれなかったとき。やり直せば通るので 503 にする。 */
+    @ExceptionHandler(PessimisticLockingFailureException.class)
+    public ResponseEntity<ApiResponse<Void>> handleLockTimeout(PessimisticLockingFailureException ex) {
+        log.warn("ロックを待ちきれませんでした: {}", ex.getMessage());
+        return failure(HttpStatus.SERVICE_UNAVAILABLE, new HttpHeaders(),
+                new ApiError("BUSY", "混み合っています。少し待ってからもう一度お試しください"));
+    }
+
+    /** 中身が空・壊れた JSON・日付の形が違うなど、読み取れないとき（500 にしない）。 */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnreadableBody(HttpMessageNotReadableException ex) {
+        return failure(HttpStatus.BAD_REQUEST, new HttpHeaders(),
+                new ApiError("INVALID_BODY", "送られた内容の形が正しくありません"));
     }
 
     /** URL の番号が数字でないとき（例：/api/tasks/abc）。 */

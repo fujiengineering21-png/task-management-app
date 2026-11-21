@@ -16,6 +16,7 @@ import com.taskboard.entity.Task;
 import com.taskboard.entity.TaskPriority;
 import com.taskboard.entity.TaskStatus;
 import com.taskboard.repository.BoardRepository;
+import com.taskboard.repository.LabelRepository;
 import com.taskboard.repository.TaskRepository;
 import java.time.LocalDate;
 import java.util.List;
@@ -38,12 +39,15 @@ class TaskServiceTest {
     @Mock
     private TaskRepository taskRepository;
 
+    @Mock
+    private LabelRepository labelRepository;
+
     private TaskService taskService;
     private Board board;
 
     @BeforeEach
     void setUp() {
-        taskService = new TaskService(boardRepository, taskRepository);
+        taskService = new TaskService(boardRepository, taskRepository, labelRepository);
         board = withId(new Board("仕事", (short) 0), 1L);
     }
 
