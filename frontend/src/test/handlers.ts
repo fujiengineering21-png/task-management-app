@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw/http'
-import { boards, tasksByBoard } from './fixtures'
+import { boards, labelsByBoard, tasksByBoard } from './fixtures'
 
 /** 成功のときの共通の包み（API設計 1.1） */
 export function ok(data: unknown): Response {
@@ -19,5 +19,8 @@ export const handlers = [
   http.get('*/api/boards', () => ok(boards)),
   http.get('*/api/boards/:boardId/tasks', ({ params }) =>
     ok(tasksByBoard[Number(params.boardId)] ?? []),
+  ),
+  http.get('*/api/boards/:boardId/labels', ({ params }) =>
+    ok(labelsByBoard[Number(params.boardId)] ?? []),
   ),
 ]

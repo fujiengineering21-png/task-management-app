@@ -12,6 +12,14 @@ export const COLUMNS: readonly ColumnDefinition[] = [
   { status: 'done', title: '完了' },
 ]
 
+/** 文字数の上限（R-06）。サーバーも同じ上限でチェックする */
+export const TITLE_MAX_LENGTH = 100
+export const DESCRIPTION_MAX_LENGTH = 1000
+
+/** 期限に選べる日付の範囲（API設計 3.4。サーバーと同じ） */
+export const DUE_DATE_MIN = '1900-01-01'
+export const DUE_DATE_MAX = '9999-12-31'
+
 /** 優先度の名前（F-13） */
 export const PRIORITY_NAMES: Record<Priority, string> = {
   high: '高',

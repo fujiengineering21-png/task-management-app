@@ -1,4 +1,4 @@
-import type { Board, Task } from '../api/schemas'
+import type { Board, Label, Task } from '../api/schemas'
 
 /** テスト用のボード（見本データと同じ2つ） */
 export const boards: Board[] = [
@@ -45,4 +45,15 @@ export const tasksByBoard: Record<number, Task[]> = {
     makeTask({ id: 5, title: '取引先に日程の返事をする', status: 'done', completed: true }),
   ],
   2: [makeTask({ id: 6, boardId: 2, title: '日用品を買う', status: 'todo' })],
+}
+
+/** ボードごとのラベル（タスクに付いていない「学習」も含む） */
+export const labelsByBoard: Record<number, Label[]> = {
+  1: [
+    { id: 1, name: '緊急', color: 'red' },
+    { id: 2, name: '請求', color: 'yellow' },
+    { id: 3, name: '会議', color: 'blue' },
+    { id: 6, name: '学習', color: 'purple' },
+  ],
+  2: [{ id: 7, name: '大事', color: 'red' }],
 }
