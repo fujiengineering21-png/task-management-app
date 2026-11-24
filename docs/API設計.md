@@ -2,8 +2,8 @@
 
 | 項目 | 内容 |
 |---|---|
-| 版 | v0.2 |
-| 更新日 | 2026-11-20 |
+| 版 | v0.3 |
+| 更新日 | 2026-11-25 |
 | 親ドキュメント | [要件定義書](要件定義書.md) |
 | ステータス | 作成中（読み取りの API とタスクの作成は決定・実装済み。更新・削除はこれから） |
 
@@ -182,15 +182,113 @@
 
 ---
 
-## 5. これから決める API
+## 5. 作ったデータがデータベースに入ったかの確かめ方
+
+タスクを作ったあと（3.4）、データが本当にデータベースに入ったかを、**見るだけの命令**で確かめる手順。どのタスクにも使えるよう、「いちばん新しく作ったタスク」を見る形にしている。
+
+### 5.1 守ること
+
+- 使うのは `SELECT` と `SHOW` だけ。`INSERT`・`UPDATE`・`DELETE` など、データを変える命令は使わない。
+- 読み取り専用の設定（`default_transaction_read_only=on`）でつなぐ。もし変える命令を流しても、データベースが断る。
+- パスワードなどの秘密は表示しない。`.env` は開かず、コンテナの中の設定を使ってつなぐ。
+- 確かめるためにサーバーを起動したときは、終わったら API サーバーと画面を止める。データベースは動かしたままでよい。
+
+### 5.2 準備
+
+1. データベースが動いているかを見る。`taskboard-db-1` が `(healthy)` なら準備ができている。
+
+   ```bash
+   docker compose ps
+   ```
+
+2. 次の形でつなぐ（リポジトリ直下で実行する）。`"ここに SELECT 文"` を、下の手順の SQL に置き換える。`-c "…"` を並べると、続けて流せる。
+
+   ```bash
+   docker compose exec -T db sh -c 'PGOPTIONS="-c default_transaction_read_only=on" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "ここに SELECT 文"'
+   ```
+
+3. 最初に、書き込み禁止になっているかを確かめる。`on` と出れば正しい。
+
+   ```sql
+   SHOW default_transaction_read_only;
+   ```
+
+### 5.3 手順
+
+**① 作る前の数を控える**（作ったあとと比べるため）
+
+```sql
+SELECT COUNT(*) AS 件数, MAX(id) AS id_最大値 FROM tasks;
+```
+
+**② tasks（タスク本体）を見る**
+
+```sql
+SELECT id, board_id, status, position, title, description,
+       is_completed, priority, due_date, created_at
+FROM tasks ORDER BY id DESC LIMIT 1;
+```
+
+- 画面で入れたタイトル・カラム・優先度・期限・説明と同じか。
+- `is_completed` が `f`（チェックなし）か。`created_at` が作った時刻か。
+
+**③ task_labels（ラベルの結び付き）を見る**
+
+```sql
+SELECT tl.task_id, l.id AS label_id, l.name, l.color
+FROM task_labels tl JOIN labels l ON l.id = tl.label_id
+WHERE tl.task_id = (SELECT MAX(id) FROM tasks)
+ORDER BY l.id;
+```
+
+- 画面で選んだラベルが、選んだ数だけ出るか。ラベルを選ばなかったときは 0 行が正しい。
+
+別のボードのラベルが混ざっていないか（**0 行なら正しい**）：
+
+```sql
+SELECT tl.task_id, l.name, l.board_id AS ラベルのボード, t.board_id AS タスクのボード
+FROM task_labels tl
+JOIN labels l ON l.id = tl.label_id
+JOIN tasks t ON t.id = tl.task_id
+WHERE l.board_id <> t.board_id;
+```
+
+**④ カラムの一番下に入ったか（R-01）**
+
+```sql
+SELECT id, position, title FROM tasks
+WHERE board_id = (SELECT board_id FROM tasks WHERE id = (SELECT MAX(id) FROM tasks))
+  AND status = (SELECT status FROM tasks WHERE id = (SELECT MAX(id) FROM tasks))
+ORDER BY position;
+```
+
+- 新しいタスクが一番下（`position` が最大）にあり、ほかのタスクと番号が重なっていないか。
+
+**⑤ 画面を再読み込みしても残っているか**
+
+1. 画面（`http://localhost:5173`）でタスクを作り、小窓が閉じて、選んだカラムの一番下にカードが出ることを見る。
+2. ブラウザを再読み込みする（Mac は `⌘ + R`）。
+3. 同じボード・同じカラムの一番下に、同じカードが残っているかを見る。カラムの件数（例：「作業中 (4)」）も、作った直後と同じか。
+4. 念のため、`http://127.0.0.1:8080/api/tasks/{番号}` を開くと、データベースから読み直した中身が JSON で出る（3.3）。
+
+再読み込みで残っていれば、画面の中の一時的な表示ではなく、データベースから読み直した結果だと言える。
+
+**⑥ 作ったあとの数を確かめる**
+
+①と同じ SQL を流し、件数が 1 増え、`id_最大値` が新しいタスクの番号になっているかを見る。
+
+---
+
+## 6. これから決める API
 
 更新・削除・並び替え・ラベルの作成と編集・ボード名の変更・毎日のリセットは、実装の順番（[要件定義書](要件定義書.md) のロードマップ Step 8）に合わせて、このドキュメントに足していく。
 
 ---
 
-## 6. 変更履歴
+## 7. 変更履歴
 
 | 版 | 日付 | 内容 |
 |---|---|---|
 | v0.1 | 2026-11-08 | 新規作成。共通の決まり（返事の包み・値の書き方・エラー）と、読み取りの API 3つ（ボード一覧・ボードのタスク全件・タスク1件）、見本データの入れ方を追加 |
 | v0.2 | 2026-11-20 | タスクの作成（3.4）と、ボードのラベル一覧（3.5）を追加。エラーに `VALIDATION_ERROR`・`INVALID_BODY`・`TASK_LIMIT_REACHED`・`BUSY` を追加 |
+| v0.3 | 2026-11-25 | 作ったタスクがデータベースに入ったかを、見るだけの SELECT で確かめる手順（5章）を追加。「これから決める API」を6章、変更履歴を7章に移した |
