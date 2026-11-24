@@ -1,12 +1,13 @@
 import { useMemo, useRef, useState } from 'react'
 import { useBoards, useBoardTasks } from '../../api/queries'
-import type { Task } from '../../api/schemas'
+import type { Task, TaskStatus } from '../../api/schemas'
 import { LoadError, Loading } from '../../components/StatusMessage'
 import { COLUMNS } from '../../lib/constants'
 import { filterByKeyword, hasKeyword } from '../../lib/filterByKeyword'
 import { groupByStatus } from '../../lib/groupByStatus'
 import { BoardTabs } from './BoardTabs'
 import { Column } from './Column'
+import { CreateTaskModal } from './CreateTaskModal'
 import { KeywordSearch } from './KeywordSearch'
 
 /** ボード画面（S-01）。ボードの一覧を読み、選んでいるボードのタスクを3カラムに並べる */
@@ -16,6 +17,8 @@ export function BoardScreen() {
   // 検索の文字は保存しない。再読み込みすると消える（R-22）
   const [keyword, setKeyword] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
+  // 作成の小窓を開いているときは、「タスクを追加」を押したカラム。閉じているときは null
+  const [creatingStatus, setCreatingStatus] = useState<TaskStatus | null>(null)
 
   // タブは position の順（0＝左）。届いた一覧は変えずに、並べ替えた写しを使う
   const boards = useMemo(
@@ -76,8 +79,18 @@ export function BoardScreen() {
           onRetry={() => void tasksQuery.refetch()}
           keyword={keyword}
           onClearKeyword={clearKeyword}
+          onAddTask={setCreatingStatus}
         />
       </main>
+      {creatingStatus !== null && (
+        <CreateTaskModal
+          // 開いている間に表示中のボードが変わったら、選んだラベルが混ざらないよう作り直す
+          key={currentId}
+          boardId={currentId}
+          initialStatus={creatingStatus}
+          onClose={() => setCreatingStatus(null)}
+        />
+      )}
     </div>
   )
 }
@@ -90,6 +103,8 @@ interface BoardBodyProps {
   onRetry: () => void
   keyword: string
   onClearKeyword: () => void
+  /** 「タスクを追加」を押したカラムを知らせる */
+  onAddTask: (status: TaskStatus) => void
 }
 
 /** ボードの中身（3カラム）。読み込み中・エラーのときは、その表示にする */
@@ -101,6 +116,7 @@ function BoardBody({
   onRetry,
   keyword,
   onClearKeyword,
+  onAddTask,
 }: BoardBodyProps) {
   if (isPending) {
     return <Loading />
@@ -133,6 +149,8 @@ function BoardBody({
             tasks={grouped[column.status]}
             currentYear={currentYear}
             totalCount={filtering ? allGrouped[column.status].length : undefined}
+            // 絞り込み中は作成できない（隠れているタスクとの順番が決められないため R-20）
+            onAdd={filtering ? undefined : () => onAddTask(column.status)}
           />
         ))}
       </div>

@@ -49,3 +49,14 @@ export type LabelColor = z.infer<typeof labelColorSchema>
 export type Board = z.infer<typeof boardSchema>
 export type Label = z.infer<typeof labelSchema>
 export type Task = z.infer<typeof taskSchema>
+
+/** タスクを作るときにサーバーへ送る中身（API設計 3.4）。id・position・completed は送らない */
+export interface CreateTaskInput {
+  title: string
+  description: string | null
+  status: TaskStatus
+  priority: Priority | null
+  /** 「2026-11-25」の形。なしは null */
+  dueDate: string | null
+  labelIds: number[]
+}
