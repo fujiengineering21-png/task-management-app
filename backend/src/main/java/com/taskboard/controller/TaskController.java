@@ -6,6 +6,7 @@ import com.taskboard.dto.TaskResponse;
 import com.taskboard.service.TaskService;
 import java.util.List;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -51,5 +52,12 @@ public class TaskController {
     public ApiResponse<TaskResponse> updateTask(@PathVariable Long taskId,
             @RequestBody CreateTaskRequest request) {
         return ApiResponse.ok(taskService.update(taskId, request));
+    }
+
+    /** DELETE /api/tasks/{taskId}：タスクを削除する。200 と、中身なし（data: null）の包みを返す。 */
+    @DeleteMapping("/tasks/{taskId}")
+    public ApiResponse<Void> deleteTask(@PathVariable Long taskId) {
+        taskService.delete(taskId);
+        return ApiResponse.ok(null);
     }
 }
