@@ -122,10 +122,28 @@ public class TaskService {
         return TaskResponse.from(task);
     }
 
+    /**
+     * タスクを削除する（F-12）。task_labels の結び付きも一緒に消える（ON DELETE CASCADE）。
+     * 同じカラムに残ったタスクを 0 から振り直して、すき間を詰める（UC-03）。
+     * 順番：タスクのボードを調べる → ボードをロック → タスクを読み直す → 削除 → 振り直し。
+     *
+     * @throws TaskNotFoundException タスクがない（画面は「削除できた」と扱う）
+     */
+    @Transactional
+    public void delete(Long taskId) {
+        Long boardId = taskRepository.findBoardIdById(taskId)
+                .orElseThrow(() -> new TaskNotFoundException(taskId));
+        boardRepository.findByIdForUpdate(boardId).orElseThrow(() -> new TaskNotFoundException(taskId));
+        Task task = taskRepository.findById(taskId).orElseThrow(() -> new TaskNotFoundException(taskId));
+        TaskStatus status = task.getStatus();
+        taskRepository.delete(task);
+        closeGaps(boardId, status, taskId);
+    }
+
     /** カラムに残ったタスクの順番を、上から 0・1・2… に振り直す。番号が変わるものだけ書き換える。 */
-    private void closeGaps(Long boardId, TaskStatus status, Long movedTaskId) {
+    private void closeGaps(Long boardId, TaskStatus status, Long removedTaskId) {
         List<Task> rest = taskRepository.findAllInColumn(boardId, status).stream()
-                .filter(task -> !task.getId().equals(movedTaskId))
+                .filter(task -> !task.getId().equals(removedTaskId))
                 .toList();
         for (int i = 0; i < rest.size(); i++) {
             if (rest.get(i).getPosition() != i) {

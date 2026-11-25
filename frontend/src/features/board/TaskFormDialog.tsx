@@ -1,4 +1,12 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type SyntheticEvent } from 'react'
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+  type SyntheticEvent,
+} from 'react'
 import { errorMessage } from '../../api/client'
 import type { Label } from '../../api/schemas'
 import { canSubmitTaskForm, type TaskFormValues } from '../../lib/taskForm'
@@ -24,6 +32,8 @@ interface TaskFormDialogProps {
   onSubmit: (values: TaskFormValues) => Promise<boolean>
   /** 小窓が閉じたあとに呼ぶ（成功・キャンセル・×・Esc のどれでも） */
   onClose: () => void
+  /** 下のボタンの並びの左はしに置くもの（編集の「削除」ボタン F-12）。作成では渡さない */
+  footerStart?: ReactNode
 }
 
 /**
@@ -42,6 +52,7 @@ export function TaskFormDialog({
   error,
   onSubmit,
   onClose,
+  footerStart,
 }: TaskFormDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const titleRef = useRef<HTMLInputElement>(null)
@@ -137,12 +148,13 @@ export function TaskFormDialog({
           </p>
         )}
 
-        <div className="flex justify-end gap-2">
+        <div className="flex items-center gap-2">
+          {footerStart}
           <button
             type="button"
             onClick={close}
             disabled={pending}
-            className="rounded-md px-4 py-2 text-sm font-semibold hover:bg-column disabled:opacity-50"
+            className="ml-auto rounded-md px-4 py-2 text-sm font-semibold hover:bg-column disabled:opacity-50"
           >
             キャンセル
           </button>

@@ -96,6 +96,11 @@ export function putJson<T>(path: string, body: unknown, schema: z.ZodType<T>): P
   return sendJson('PUT', path, body, schema)
 }
 
+/** API のデータを削除する（DELETE）。返ってきた data（削除では null）を schema で確かめて返す */
+export function deleteJson<T>(path: string, schema: z.ZodType<T>): Promise<T> {
+  return requestJson(path, schema, { method: 'DELETE' })
+}
+
 /** 画面に出すエラーの文。知らない種類のエラーは、つながらないものとして扱う */
 export function errorMessage(error: unknown): string {
   return error instanceof ApiError ? error.message : CONNECTION_MESSAGE

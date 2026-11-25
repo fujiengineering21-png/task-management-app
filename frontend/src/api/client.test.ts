@@ -3,7 +3,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { fail, ok } from '../test/handlers'
 import { server } from '../test/server'
-import { ApiError, ConnectionError, getJson, postJson, putJson, REQUEST_TIMEOUT_MS } from './client'
+import {
+  ApiError,
+  ConnectionError,
+  deleteJson,
+  getJson,
+  postJson,
+  putJson,
+  REQUEST_TIMEOUT_MS,
+} from './client'
 
 const schema = z.array(z.object({ id: z.number() }))
 
@@ -149,6 +157,32 @@ describe('putJson（API のデータを書き換える）', () => {
     )
 
     const error = await putJson('/api/sample/3', {}, schema).catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect((error as ApiError).code).toBe('TASK_NOT_FOUND')
+  })
+})
+
+describe('deleteJson（API のデータを削除する）', () => {
+  it('DELETE で送り、包みの中の data（削除では null）を返す', async () => {
+    let method: string | undefined
+    server.use(
+      http.delete('*/api/sample/3', ({ request }) => {
+        method = request.method
+        return ok(null)
+      }),
+    )
+
+    await expect(deleteJson('/api/sample/3', z.null())).resolves.toBeNull()
+    expect(method).toBe('DELETE')
+  })
+
+  it('success:false なら、サーバーの日本語のメッセージで ApiError', async () => {
+    server.use(
+      http.delete('*/api/sample/3', () => fail(404, 'TASK_NOT_FOUND', 'タスクが見つかりません')),
+    )
+
+    const error = await deleteJson('/api/sample/3', z.null()).catch((e: unknown) => e)
 
     expect(error).toBeInstanceOf(ApiError)
     expect((error as ApiError).code).toBe('TASK_NOT_FOUND')

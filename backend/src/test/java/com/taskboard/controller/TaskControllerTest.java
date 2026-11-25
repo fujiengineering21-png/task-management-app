@@ -5,7 +5,10 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -318,5 +321,35 @@ class TaskControllerTest {
                         .content("{\"title\":"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("INVALID_BODY"));
+    }
+
+    @Test
+    @DisplayName("削除は 200 と、中身なし（data: null）の包みを返す")
+    void deleteTaskReturns200WithEmptyData() throws Exception {
+        mockMvc.perform(delete("/api/tasks/3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").value(nullValue()))
+                .andExpect(jsonPath("$.error").value(nullValue()));
+        verify(taskService).delete(3L);
+    }
+
+    @Test
+    @DisplayName("ないタスクの削除は 404 と TASK_NOT_FOUND を返す（画面は「削除できた」と扱う）")
+    void deleteTaskReturns404WhenMissing() throws Exception {
+        doThrow(new TaskNotFoundException(9999L)).when(taskService).delete(9999L);
+
+        mockMvc.perform(delete("/api/tasks/9999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("TASK_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("削除で番号が数字でないときは 400 と INVALID_ID を返す")
+    void deleteTaskReturns400WhenIdIsNotNumber() throws Exception {
+        mockMvc.perform(delete("/api/tasks/abc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_ID"));
     }
 }

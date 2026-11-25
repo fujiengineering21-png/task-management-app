@@ -63,6 +63,21 @@ export function BoardScreen() {
     }, 0)
   }
 
+  // 削除が済んだとき。カードがなくなるので、そのカラムの「タスクを追加」へカーソルを置く
+  // （絞り込み中でボタンがないときは、何もしない）
+  function finishDeleting(deleted: Task) {
+    setEditingTask(null)
+    const column = COLUMNS.find((item) => item.status === deleted.status)
+    if (column === undefined) {
+      return
+    }
+    setTimeout(() => {
+      document
+        .querySelector<HTMLElement>(`button[aria-label="タスクを追加（${column.title}）"]`)
+        ?.focus()
+    }, 0)
+  }
+
   if (boardsQuery.isPending) {
     return <Loading />
   }
@@ -117,6 +132,7 @@ export function BoardScreen() {
           boardId={currentId}
           task={editingTask}
           onClose={closeEditing}
+          onDeleted={finishDeleting}
         />
       )}
     </div>

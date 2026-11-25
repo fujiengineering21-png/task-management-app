@@ -6,7 +6,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query'
 import { z } from 'zod'
-import { getJson, postJson, putJson } from './client'
+import { ApiError, deleteJson, getJson, postJson, putJson } from './client'
 import {
   boardSchema,
   labelSchema,
@@ -83,6 +83,31 @@ export function useUpdateTask(
   return useMutation({
     mutationFn: ({ taskId, input }: UpdateTaskVariables) =>
       putJson(`/api/tasks/${taskId}`, input, taskSchema),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: boardTasksKey(boardId) }),
+    onError: () => {
+      void queryClient.invalidateQueries({ queryKey: boardTasksKey(boardId) })
+    },
+  })
+}
+
+/**
+ * タスクを削除する（DELETE /api/tasks/{taskId}）。成功したら一覧を読み終わってから完了にする。
+ * ほかの人がすでに削除していた（TASK_NOT_FOUND）ときは、「削除できた」として扱う（UC-03）。
+ * 失敗したときも一覧を読み直す
+ */
+export function useDeleteTask(boardId: number): UseMutationResult<void, Error, number> {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (taskId: number) => {
+      try {
+        await deleteJson(`/api/tasks/${taskId}`, z.null())
+      } catch (error) {
+        if (error instanceof ApiError && error.code === 'TASK_NOT_FOUND') {
+          return
+        }
+        throw error
+      }
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: boardTasksKey(boardId) }),
     onError: () => {
       void queryClient.invalidateQueries({ queryKey: boardTasksKey(boardId) })
