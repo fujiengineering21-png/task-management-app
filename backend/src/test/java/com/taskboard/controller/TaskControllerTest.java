@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -254,5 +255,68 @@ class TaskControllerTest {
                 .andExpect(jsonPath("$.error.code").value("BUSY"))
                 .andExpect(jsonPath("$.error.message").value("混み合っています。少し待ってからもう一度お試しください"))
                 .andExpect(content().string(not(containsString("lock timeout"))));
+    }
+
+    @Test
+    @DisplayName("書き換えは 200 と、包みに入った書き換えたあとのタスクを返す")
+    void updateTaskReturns200() throws Exception {
+        TaskResponse updated = new TaskResponse(3L, 1L, "done", 1, "資料を印刷する", null,
+                false, "high", LocalDate.of(2026, 11, 25),
+                List.of(new LabelResponse(3L, "会議", "blue")));
+        CreateTaskRequest expected = new CreateTaskRequest("資料を印刷する", null, "todo", "high",
+                LocalDate.of(2026, 11, 25), List.of(3L));
+        when(taskService.update(3L, expected)).thenReturn(updated);
+
+        mockMvc.perform(put("/api/tasks/3")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(CREATE_BODY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").value(3))
+                .andExpect(jsonPath("$.data.status").value("done"))
+                .andExpect(jsonPath("$.data.position").value(1));
+    }
+
+    @Test
+    @DisplayName("ないタスクの書き換えは 404 と TASK_NOT_FOUND を返す（画面が R-28 の文を出す）")
+    void updateTaskReturns404WhenMissing() throws Exception {
+        when(taskService.update(eq(9999L), any())).thenThrow(new TaskNotFoundException(9999L));
+
+        mockMvc.perform(put("/api/tasks/9999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(CREATE_BODY))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("TASK_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("書き換えの入力が正しくないときは 400 と日本語のメッセージを返す")
+    void updateTaskReturns400WhenInputInvalid() throws Exception {
+        when(taskService.update(eq(3L), any()))
+                .thenThrow(new InvalidTaskInputException("タイトルを入力してください"));
+
+        mockMvc.perform(put("/api/tasks/3")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(CREATE_BODY))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.error.message").value("タイトルを入力してください"));
+    }
+
+    @Test
+    @DisplayName("書き換えで、番号が数字でない・中身が壊れているときは 400 を返す")
+    void updateTaskReturns400WhenIdOrBodyBroken() throws Exception {
+        mockMvc.perform(put("/api/tasks/abc")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(CREATE_BODY))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_ID"));
+
+        mockMvc.perform(put("/api/tasks/3")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_BODY"));
     }
 }

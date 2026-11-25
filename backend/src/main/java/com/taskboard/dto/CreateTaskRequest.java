@@ -4,8 +4,9 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * タスクを作るときに画面から届く中身（POST /api/boards/{boardId}/tasks）。
- * id・position・completed は受け取らない（id はデータベース、position はサーバーが決める。新しいタスクは未チェック）。
+ * タスクを作る・書き換えるときに画面から届く中身（POST /api/boards/{boardId}/tasks・PUT /api/tasks/{taskId}）。
+ * 作成と書き換えで同じ形を使う。
+ * id・position・completed は受け取らない（id はデータベース、position はサーバーが決める。チェックは別の操作で変える）。
  * 中身のチェックは TaskService で行う（前後の空白を取ってから文字数を数えるため）。
  *
  * @param title       タイトル（必須）

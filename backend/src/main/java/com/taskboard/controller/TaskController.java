@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -43,5 +44,12 @@ public class TaskController {
     public ApiResponse<TaskResponse> createTask(@PathVariable Long boardId,
             @RequestBody CreateTaskRequest request) {
         return ApiResponse.ok(taskService.create(boardId, request));
+    }
+
+    /** PUT /api/tasks/{taskId}：タスクを書き換える（全部の項目を置き換える）。200 と、書き換えたあとのタスクを返す。 */
+    @PutMapping("/tasks/{taskId}")
+    public ApiResponse<TaskResponse> updateTask(@PathVariable Long taskId,
+            @RequestBody CreateTaskRequest request) {
+        return ApiResponse.ok(taskService.update(taskId, request));
     }
 }
