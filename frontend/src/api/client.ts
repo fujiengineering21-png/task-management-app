@@ -72,13 +72,28 @@ export function getJson<T>(path: string, schema: z.ZodType<T>): Promise<T> {
   return requestJson(path, schema)
 }
 
-/** API に JSON を送る（POST）。返ってきた data を schema で確かめて返す */
-export function postJson<T>(path: string, body: unknown, schema: z.ZodType<T>): Promise<T> {
+/** 中身を JSON にして送る（POST・PUT で共通） */
+function sendJson<T>(
+  method: 'POST' | 'PUT',
+  path: string,
+  body: unknown,
+  schema: z.ZodType<T>,
+): Promise<T> {
   return requestJson(path, schema, {
-    method: 'POST',
+    method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
+}
+
+/** API に JSON を送って作る（POST）。返ってきた data を schema で確かめて返す */
+export function postJson<T>(path: string, body: unknown, schema: z.ZodType<T>): Promise<T> {
+  return sendJson('POST', path, body, schema)
+}
+
+/** API に JSON を送って書き換える（PUT）。返ってきた data を schema で確かめて返す */
+export function putJson<T>(path: string, body: unknown, schema: z.ZodType<T>): Promise<T> {
+  return sendJson('PUT', path, body, schema)
 }
 
 /** 画面に出すエラーの文。知らない種類のエラーは、つながらないものとして扱う */

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { fail, ok } from '../test/handlers'
 import { server } from '../test/server'
-import { ApiError, ConnectionError, getJson, postJson, REQUEST_TIMEOUT_MS } from './client'
+import { ApiError, ConnectionError, getJson, postJson, putJson, REQUEST_TIMEOUT_MS } from './client'
 
 const schema = z.array(z.object({ id: z.number() }))
 
@@ -118,5 +118,39 @@ describe('時間切れ（サーバーが返事をしないとき）', () => {
     await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS)
 
     expect(await result).toBeInstanceOf(ConnectionError)
+  })
+})
+
+describe('putJson（API のデータを書き換える）', () => {
+  it('中身を JSON にして PUT で送り、包みの中の data を返す', async () => {
+    let received: { method: string; contentType: string | null; body: unknown } | undefined
+    server.use(
+      http.put('*/api/sample/3', async ({ request }) => {
+        received = {
+          method: request.method,
+          contentType: request.headers.get('Content-Type'),
+          body: await request.json(),
+        }
+        return ok([{ id: 3 }])
+      }),
+    )
+
+    await expect(putJson('/api/sample/3', { title: 'b' }, schema)).resolves.toEqual([{ id: 3 }])
+    expect(received).toEqual({
+      method: 'PUT',
+      contentType: 'application/json',
+      body: { title: 'b' },
+    })
+  })
+
+  it('success:false なら、サーバーの日本語のメッセージで ApiError', async () => {
+    server.use(
+      http.put('*/api/sample/3', () => fail(404, 'TASK_NOT_FOUND', 'タスクが見つかりません')),
+    )
+
+    const error = await putJson('/api/sample/3', {}, schema).catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect((error as ApiError).code).toBe('TASK_NOT_FOUND')
   })
 })
