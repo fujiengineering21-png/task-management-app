@@ -5,6 +5,7 @@ import com.taskboard.dto.TaskResponse;
 import com.taskboard.entity.Board;
 import com.taskboard.entity.Label;
 import com.taskboard.entity.Task;
+import com.taskboard.entity.TaskStatus;
 import com.taskboard.repository.BoardRepository;
 import com.taskboard.repository.LabelRepository;
 import com.taskboard.repository.TaskRepository;
@@ -86,6 +87,51 @@ public class TaskService {
         Task task = new Task(board, input.status(), position, input.title(), input.description(),
                 false, input.priority(), input.dueDate(), labels);
         return TaskResponse.from(taskRepository.save(task));
+    }
+
+    /**
+     * タスクを書き換える（F-11）。全部の項目を置き換え、チェックとボードは変えない。
+     * カラムを変えたら移動先の一番下に入れ（R-04）、移動元に残ったタスクを 0 から振り直す。
+     * 順番：中身のチェック → タスクのボードを調べる → ボードをロック → タスクを読み直す → ラベル → 書き換え → 振り直し。
+     * ロックのあとに読み直すのは、待っている間にほかの人が削除・書き換えをしているかもしれないため。
+     *
+     * @throws InvalidTaskInputException 中身が正しくない
+     * @throws TaskNotFoundException     タスクがない（ほかの人が削除した）
+     */
+    @Transactional
+    public TaskResponse update(Long taskId, CreateTaskRequest request) {
+        TaskInput input = TaskInput.from(request);
+        Long boardId = taskRepository.findBoardIdById(taskId)
+                .orElseThrow(() -> new TaskNotFoundException(taskId));
+        boardRepository.findByIdForUpdate(boardId).orElseThrow(() -> new TaskNotFoundException(taskId));
+        Task task = taskRepository.findWithLabelsById(taskId)
+                .orElseThrow(() -> new TaskNotFoundException(taskId));
+        Set<Label> labels = labelsOfBoard(boardId, input.labelIds());
+
+        TaskStatus from = task.getStatus();
+        boolean moved = from != input.status();
+        int position = moved
+                ? taskRepository.findMaxPosition(boardId, input.status()) + 1
+                : task.getPosition();
+        task.update(input.status(), position, input.title(), input.description(),
+                input.priority(), input.dueDate(), labels);
+        if (moved) {
+            closeGaps(boardId, from, taskId);
+        }
+        // 書き換えた中身は、トランザクションの終わりにデータベースへ書き込まれる（JPA の変更の見張り）
+        return TaskResponse.from(task);
+    }
+
+    /** カラムに残ったタスクの順番を、上から 0・1・2… に振り直す。番号が変わるものだけ書き換える。 */
+    private void closeGaps(Long boardId, TaskStatus status, Long movedTaskId) {
+        List<Task> rest = taskRepository.findAllInColumn(boardId, status).stream()
+                .filter(task -> !task.getId().equals(movedTaskId))
+                .toList();
+        for (int i = 0; i < rest.size(); i++) {
+            if (rest.get(i).getPosition() != i) {
+                rest.get(i).changePosition(i);
+            }
+        }
     }
 
     /** 番号のラベルを取り出す。そのボードのラベルでない番号が1つでもあれば InvalidTaskInputException。 */

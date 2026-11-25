@@ -8,6 +8,7 @@ import { groupByStatus } from '../../lib/groupByStatus'
 import { BoardTabs } from './BoardTabs'
 import { Column } from './Column'
 import { CreateTaskModal } from './CreateTaskModal'
+import { EditTaskModal } from './EditTaskModal'
 import { KeywordSearch } from './KeywordSearch'
 
 /** ボード画面（S-01）。ボードの一覧を読み、選んでいるボードのタスクを3カラムに並べる */
@@ -19,6 +20,8 @@ export function BoardScreen() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   // 作成の小窓を開いているときは、「タスクを追加」を押したカラム。閉じているときは null
   const [creatingStatus, setCreatingStatus] = useState<TaskStatus | null>(null)
+  // 編集の小窓を開いているときは、押したカードのタスク（開いたときの写し）。閉じているときは null
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
 
   // タブは position の順（0＝左）。届いた一覧は変えずに、並べ替えた写しを使う
   const boards = useMemo(
@@ -42,6 +45,22 @@ export function BoardScreen() {
   function clearKeyword() {
     setKeyword('')
     searchInputRef.current?.focus()
+  }
+
+  // 編集の小窓が閉じたとき。ふつうはブラウザが、押したカードへカーソルを戻す。
+  // ただしカラムを変えて保存すると、カードが別のカラムで作り直され、戻り先がなくなる。
+  // そのときは、画面が描き直されたあとに、移ったカードへカーソルを当てる
+  function closeEditing(saved: Task | null) {
+    setEditingTask(null)
+    if (saved === null) {
+      return
+    }
+    setTimeout(() => {
+      if (document.activeElement !== document.body) {
+        return
+      }
+      document.querySelector<HTMLElement>(`[data-task-id="${saved.id}"] button`)?.focus()
+    }, 0)
   }
 
   if (boardsQuery.isPending) {
@@ -80,6 +99,7 @@ export function BoardScreen() {
           keyword={keyword}
           onClearKeyword={clearKeyword}
           onAddTask={setCreatingStatus}
+          onOpenTask={setEditingTask}
         />
       </main>
       {creatingStatus !== null && (
@@ -89,6 +109,14 @@ export function BoardScreen() {
           boardId={currentId}
           initialStatus={creatingStatus}
           onClose={() => setCreatingStatus(null)}
+        />
+      )}
+      {editingTask !== null && (
+        <EditTaskModal
+          key={`${currentId}-${editingTask.id}`}
+          boardId={currentId}
+          task={editingTask}
+          onClose={closeEditing}
         />
       )}
     </div>
@@ -105,6 +133,8 @@ interface BoardBodyProps {
   onClearKeyword: () => void
   /** 「タスクを追加」を押したカラムを知らせる */
   onAddTask: (status: TaskStatus) => void
+  /** 押したカードのタスクを知らせる */
+  onOpenTask: (task: Task) => void
 }
 
 /** ボードの中身（3カラム）。読み込み中・エラーのときは、その表示にする */
@@ -117,6 +147,7 @@ function BoardBody({
   keyword,
   onClearKeyword,
   onAddTask,
+  onOpenTask,
 }: BoardBodyProps) {
   if (isPending) {
     return <Loading />
@@ -151,6 +182,7 @@ function BoardBody({
             totalCount={filtering ? allGrouped[column.status].length : undefined}
             // 絞り込み中は作成できない（隠れているタスクとの順番が決められないため R-20）
             onAdd={filtering ? undefined : () => onAddTask(column.status)}
+            onOpenTask={onOpenTask}
           />
         ))}
       </div>

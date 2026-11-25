@@ -133,4 +133,25 @@ public class Task {
     public Set<Label> getLabels() {
         return Collections.unmodifiableSet(labels);
     }
+
+    /**
+     * 編集モーダルの内容で置き換える（F-11）。チェック（completed）とボードは変えない。
+     * ラベルは、入れ物はそのままで中身だけを入れ替える（JPA が task_labels の行を足し引きできるように）。
+     */
+    public void update(TaskStatus status, int position, String title, String description,
+            TaskPriority priority, LocalDate dueDate, Set<Label> labels) {
+        this.status = status;
+        this.position = position;
+        this.title = title;
+        this.description = description;
+        this.priority = priority;
+        this.dueDate = dueDate;
+        this.labels.clear();
+        this.labels.addAll(labels);
+    }
+
+    /** カラムの中の順番だけを変える（ほかのタスクが抜けたあとの振り直しに使う）。 */
+    public void changePosition(int position) {
+        this.position = position;
+    }
 }

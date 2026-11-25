@@ -22,6 +22,14 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     @Query("select t from Task t left join fetch t.labels where t.id = :id")
     Optional<Task> findWithLabelsById(@Param("id") Long id);
 
+    /** タスクがどのボードにあるか（ロックをかけるボードを決めるために使う）。タスクがなければ空。 */
+    @Query("select t.board.id from Task t where t.id = :id")
+    Optional<Long> findBoardIdById(@Param("id") Long id);
+
+    /** 1つのカラムのタスクを、順番どおり（position、同じなら番号の順）に取り出す。順番の振り直しに使う。 */
+    @Query("select t from Task t where t.board.id = :boardId and t.status = :status order by t.position, t.id")
+    List<Task> findAllInColumn(@Param("boardId") Long boardId, @Param("status") TaskStatus status);
+
     /** 1つのボードのタスクの件数（上限 R-29 のチェックに使う）。 */
     @Query("select count(t) from Task t where t.board.id = :boardId")
     long countByBoardId(@Param("boardId") Long boardId);

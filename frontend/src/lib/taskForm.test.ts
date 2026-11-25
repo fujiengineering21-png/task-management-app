@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { canSubmitTaskForm, initialTaskForm, toCreateTaskInput } from './taskForm'
+import { makeTask } from '../test/fixtures'
+import { canSubmitTaskForm, initialTaskForm, toCreateTaskInput, toTaskFormValues } from './taskForm'
 
 describe('initialTaskForm（作成の小窓の初期値）', () => {
   it('押したカラムだけが入り、ほかは空（優先度・期限・ラベルは「なし」）（R-02）', () => {
@@ -73,5 +74,42 @@ describe('toCreateTaskInput（サーバーに送る形に直す）', () => {
 
     expect(values.title).toBe(' a ')
     expect(input.labelIds).not.toBe(values.labelIds)
+  })
+})
+
+describe('toTaskFormValues（編集の小窓に今の値を入れる）', () => {
+  it('タスクの今の値を、入力欄の形に直す（ラベルは番号だけ）', () => {
+    const task = makeTask({
+      id: 3,
+      title: '会議の資料をまとめる',
+      description: '議題を1枚にまとめる',
+      status: 'doing',
+      priority: 'high',
+      dueDate: '2026-11-11',
+      labels: [
+        { id: 3, name: '会議', color: 'blue' },
+        { id: 4, name: '資料', color: 'green' },
+      ],
+    })
+
+    expect(toTaskFormValues(task)).toEqual({
+      title: '会議の資料をまとめる',
+      description: '議題を1枚にまとめる',
+      status: 'doing',
+      priority: 'high',
+      dueDate: '2026-11-11',
+      labelIds: [3, 4],
+    })
+  })
+
+  it('「なし」の値（null）は、空の文字にする', () => {
+    expect(toTaskFormValues(makeTask({ id: 1, title: 'a' }))).toEqual({
+      title: 'a',
+      description: '',
+      status: 'todo',
+      priority: '',
+      dueDate: '',
+      labelIds: [],
+    })
   })
 })

@@ -6,7 +6,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query'
 import { z } from 'zod'
-import { getJson, postJson } from './client'
+import { getJson, postJson, putJson } from './client'
 import {
   boardSchema,
   labelSchema,
@@ -59,6 +59,30 @@ export function useCreateTask(boardId: number): UseMutationResult<Task, Error, C
   return useMutation({
     mutationFn: (input: CreateTaskInput) =>
       postJson(`/api/boards/${boardId}/tasks`, input, taskSchema),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: boardTasksKey(boardId) }),
+    onError: () => {
+      void queryClient.invalidateQueries({ queryKey: boardTasksKey(boardId) })
+    },
+  })
+}
+
+/** 書き換えるタスクの番号と、新しい中身 */
+export interface UpdateTaskVariables {
+  taskId: number
+  input: CreateTaskInput
+}
+
+/**
+ * タスクを書き換える（PUT /api/tasks/{taskId}）。作成と同じく、成功したら一覧を読み終わってから完了にする。
+ * 失敗したときも一覧を読み直す。ほかの人が削除していた（R-28）ときに、ボードを最新にするため
+ */
+export function useUpdateTask(
+  boardId: number,
+): UseMutationResult<Task, Error, UpdateTaskVariables> {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ taskId, input }: UpdateTaskVariables) =>
+      putJson(`/api/tasks/${taskId}`, input, taskSchema),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: boardTasksKey(boardId) }),
     onError: () => {
       void queryClient.invalidateQueries({ queryKey: boardTasksKey(boardId) })
